@@ -2459,13 +2459,49 @@ function renderCal() {
             <div style="font-size:11px;color:var(--text3)">${e.hora||''} ${e.partic?'· '+e.partic:''} ${e.local?'· '+e.local:''}</div>
             ${e.createdBy?`<div style="font-size:10px;color:var(--text3)">por ${e.createdBy}</div>`:''}
           </div>
-          <button class="btn btn-danger btn-xs" onclick="deletarEvento('${d.id}')">✕</button>
+          <div style="display:flex;gap:4px;align-items:center">
+            <a href="${googleCalLink(e)}" target="_blank"
+              style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;background:#f4f3f0;border:1px solid #e2e0db;font-size:11px;font-weight:500;color:#1c1b18;text-decoration:none;white-space:nowrap"
+              title="Adicionar ao Google Agenda">
+              <img src="https://www.gstatic.com/images/branding/product/1x/calendar_2020q4_16dp.png" width="12" height="12" style="flex-shrink:0"> Google Agenda
+            </a>
+            <button class="btn btn-danger btn-xs" onclick="deletarEvento('${d.id}')">✕</button>
+          </div>
         </div>`}).join('');
   });
 }
 
 function calPrev(){cM--;if(cM<0){cM=11;cY--;}renderCal();}
 function calNext(){cM++;if(cM>11){cM=0;cY++;}renderCal();}
+
+function googleCalLink(e) {
+  // Format date: YYYYMMDD
+  const d = (e.data||'').replace(/-/g,'');
+  if (!d) return '#';
+  // Format time: HHMMSS
+  let start = d, end = d;
+  if (e.hora) {
+    const [h,m] = e.hora.split(':');
+    const hEnd = String((parseInt(h)+1)%24).padStart(2,'0');
+    start = `${d}T${h}${m}00`;
+    end   = `${d}T${hEnd}${m}00`;
+  } else {
+    // All day event
+    const dt = new Date(e.data+'T00:00:00');
+    dt.setDate(dt.getDate()+1);
+    const nextDay = dt.toISOString().split('T')[0].replace(/-/g,'');
+    end = nextDay;
+  }
+  const title = encodeURIComponent(e.titulo||'Evento');
+  const details = encodeURIComponent([
+    e.tipo ? `Tipo: ${e.tipo}` : '',
+    e.partic ? `Participantes: ${e.partic}` : '',
+    e.local ? `Local: ${e.local}` : '',
+    'Adicionado pelo BM Office',
+  ].filter(Boolean).join('\n'));
+  const location = encodeURIComponent(e.local||'');
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+}
 async function deletarEvento(id){if(!confirm('Excluir evento?'))return;await db.collection('eventos').doc(id).delete();await logAudit('excluiu evento','eventos',id);}
 
 async function salvarEv() {
@@ -2900,35 +2936,13 @@ async function salvarPost(){
 // ══════════════════════════════════════════════════════
 // PÁGINA DO CLIENTE
 // ══════════════════════════════════════════════════════
+// ══ EMAILJS CONFIG ══ (preencher após configurar o EmailJS)
+const EMAILJS_SERVICE_ID  = 'SEU_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'SEU_TEMPLATE_ID';
+const EMAILJS_PUBLIC_KEY  = 'SUA_PUBLIC_KEY';
+const EMAILJS_CONFIGURED  = false; // mude para true após configurar
+
 let _cpHtml='';
-
-function renderCPPage(){
-  const sel=document.getElementById('sel-cp-proj');
-  if(sel) sel.innerHTML='<option value="">Selecione...</option>'+_projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join('');
-}
-
-function previewCP(){
-  const id=document.getElementById('sel-cp-proj').value;
-  if(!id){document.getElementById('cp-preview').innerHTML='';return;}
-  const p=_projetos.find(x=>x.id===id);
-  if(!p) return;
-  document.getElementById('cp-preview').innerHTML=`
-    <div class="tbox">
-      <div class="tbox-hdr"><div class="tbox-title">Pré-visualização</div></div>
-      <div style="padding:16px">
-        <div style="background:var(--acc);color:#fff;border-radius:var(--r2);padding:18px;margin-bottom:12px">
-          <div style="font-size:11px;opacity:.7;font-family:var(--mono)">${p.cod}</div>
-          <div style="font-size:20px;font-weight:700">${p.nome}</div>
-          <div style="font-size:13px;opacity:.8">Cliente: ${p.cli||'—'}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Etapa</div><div style="font-size:13px;font-weight:600">${p.etapa||'EP0'}</div></div>
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Progresso</div><div style="font-size:18px;font-weight:700;color:var(--acc)">${p.pct||0}%</div></div>
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Prazo</div><div style="font-size:13px;font-weight:600">${fmt(p.prazo)}</div></div>
-        </div>
-      </div>
-    </div>`;
-}
 
 function gerarCP(){
   const id=document.getElementById('sel-cp-proj').value;
@@ -2936,33 +2950,68 @@ function gerarCP(){
   const p=_projetos.find(x=>x.id===id);
   const whats=document.getElementById('cp-whats').value;
 
-  // Load atas then generate
-  db.collection('projetos').doc(id).collection('atas').orderBy('data','desc').get().then(atasSnap=>{
-    const atas=atasSnap.docs.map(d=>d.data());
+  Promise.all([
+    db.collection('projetos').doc(id).collection('atas').orderBy('data','desc').get(),
+    db.collection('projetos').doc(id).get(),
+  ]).then(([atasSnap, projDoc])=>{
+    const atas = atasSnap.docs.map(d=>d.data());
+    const projData = projDoc.data();
+    const etapas = projData.etapas || {};
+    const template = projData.template || 'arq';
+    const ckTpl = CK_TEMPLATES[template] || CK_TEMPLATES.arq;
+
+    const etapasList = ckTpl.map(g => {
+      const ep = etapas[g.id] || {};
+      return { label: g.label, cor: g.cor, status: ep.status || 'A iniciar', fim: ep.fim || '' };
+    });
+
+    const etapasHtml = etapasList.map(ep=>{
+      const ico = ep.status==='Concluída'?'✅':ep.status==='Em andamento'?'🔄':ep.status==='Atrasada'?'⚠️':'⭕';
+      const bcls = ep.status==='Concluída'?'b-green':ep.status==='Em andamento'?'b-amber':ep.status==='Atrasada'?'b-red':'b-gray';
+      const nome = ep.label.split('—')[1]?.trim()||ep.label;
+      return `<div class="etapa-row"><span style="font-size:16px">${ico}</span><span class="etapa-nome">${nome}</span><span class="etapa-badge ${bcls}">${ep.status}</span>${ep.fim?`<span style="font-size:10px;color:#a09d97">${fmt(ep.fim)}</span>`:''}</div>`;
+    }).join('');
+
+    const atasHtml = atas.length>0?`<div class="sec"><div class="sec-t">📄 Atas de reunião</div>${atas.map(a=>`<div class="ata"><div class="ata-titulo">${a.titulo}</div><div class="ata-meta">📅 ${fmt(a.data)}${a.hora?' às '+a.hora:''} ${a.partic?'· '+a.partic:''}</div><div class="ata-sec">O que foi decidido</div><div class="ata-txt">${a.decidido||'—'}</div>${a.acoes?`<div class="ata-sec" style="margin-top:8px">Próximos passos</div><div class="ata-txt">${a.acoes}</div>`:''}${a.drive?`<a href="${a.drive}" target="_blank" style="color:#2d5be3;font-size:12px;display:inline-block;margin-top:6px">📂 Ver arquivo ↗</a>`:''}</div>`).join('')}</div>`:'';
 
     _cpHtml=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${p.nome} · BM Office</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f3f0;color:#1c1b18;padding:0 0 60px}.hdr{background:#2d5be3;color:#fff;padding:26px 24px}.logo{font-size:11px;font-weight:600;letter-spacing:.1em;opacity:.6;margin-bottom:8px}.title{font-size:24px;font-weight:700;margin-bottom:3px}.sub{font-size:13px;opacity:.7}.cont{max-width:680px;margin:0 auto;padding:0 16px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.card{background:#fff;border-radius:10px;padding:13px 15px;border:1px solid #e2e0db}.lbl{font-size:10px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.val{font-size:18px;font-weight:700;color:#2d5be3}.bar{height:6px;background:#e8e6e1;border-radius:6px;overflow:hidden;margin:0 0 14px}.fill{height:100%;background:#2d5be3;border-radius:6px}.sec{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #e2e0db}.sec-t{font-size:14px;font-weight:600;margin-bottom:12px;color:#1c1b18}.ata{padding:12px 0;border-bottom:1px solid #f0ede8}.ata:last-child{border-bottom:none}.ata-titulo{font-size:13px;font-weight:600;margin-bottom:4px}.ata-meta{font-size:11px;color:#a09d97;margin-bottom:8px}.ata-sec{font-size:11px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.ata-txt{font-size:13px;color:#3d3d3a;white-space:pre-wrap;line-height:1.55}.footer{text-align:center;font-size:11px;color:#a09d97;padding:24px;border-top:1px solid #e2e0db;margin-top:12px}${whats?'.wa{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin:6px 0}':''}
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"><\/script>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f3f0;color:#1c1b18;padding:0 0 60px}.hdr{background:#2d5be3;color:#fff;padding:26px 24px}.logo{font-size:11px;font-weight:600;letter-spacing:.1em;opacity:.6;margin-bottom:8px}.title{font-size:24px;font-weight:700;margin-bottom:3px}.sub{font-size:13px;opacity:.7}.cont{max-width:680px;margin:0 auto;padding:0 16px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.card{background:#fff;border-radius:10px;padding:13px 15px;border:1px solid #e2e0db}.lbl{font-size:10px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.val{font-size:18px;font-weight:700;color:#2d5be3}.bar{height:6px;background:#e8e6e1;border-radius:6px;overflow:hidden;margin:0 0 14px}.fill{height:100%;background:#2d5be3;border-radius:6px}.sec{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #e2e0db}.sec-t{font-size:14px;font-weight:600;margin-bottom:12px}.etapa-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0ede8}.etapa-row:last-child{border-bottom:none}.etapa-nome{font-size:13px;flex:1}.etapa-badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}.b-green{background:#e6f5ec;color:#2a7a45}.b-amber{background:#fdf4d7;color:#8a6000}.b-gray{background:#f4f3f0;color:#6b6860}.b-red{background:#fdeaea;color:#b03030}.ata{padding:12px 0;border-bottom:1px solid #f0ede8}.ata:last-child{border-bottom:none}.ata-titulo{font-size:13px;font-weight:600;margin-bottom:4px}.ata-meta{font-size:11px;color:#a09d97;margin-bottom:8px}.ata-sec{font-size:11px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.ata-txt{font-size:13px;color:#3d3d3a;white-space:pre-wrap;line-height:1.55}.fi{width:100%;padding:10px 14px;border:1px solid #e2e0db;border-radius:8px;font-size:13px;font-family:inherit;color:#1c1b18;background:#fff;outline:none;margin-bottom:10px}.fi:focus{border-color:#2d5be3}.btn-send{background:#2d5be3;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%}.msg-ok{background:#e6f5ec;color:#2a7a45;padding:10px 14px;border-radius:8px;font-size:13px;display:none;margin-top:8px;text-align:center}.msg-err{background:#fdeaea;color:#b03030;padding:10px 14px;border-radius:8px;font-size:13px;display:none;margin-top:8px;text-align:center}.footer{text-align:center;font-size:11px;color:#a09d97;padding:24px;border-top:1px solid #e2e0db;margin-top:12px}${whats?'.wa{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin:6px 0}':''}
 </style></head><body>
-<div class="hdr"><div class="cont"><div class="logo">BM OFFICE</div><div class="title">${p.nome}</div><div class="sub">Cliente: ${p.cli||'—'} &nbsp;·&nbsp; ${p.cod}</div></div></div>
+<div class="hdr"><div class="cont"><div class="logo">BM OFFICE</div><div class="title">${p.nome}</div><div class="sub">Cliente: ${p.cli||'—'} · ${p.cod}</div></div></div>
 <div class="cont">
-<div class="cards"><div class="card"><div class="lbl">Etapa atual</div><div class="val" style="font-size:13px">${p.etapa||'EP0'}</div></div>
-<div class="card"><div class="lbl">Progresso</div><div class="val">${p.pct||0}%</div></div>
-<div class="card"><div class="lbl">Próximo prazo</div><div class="val" style="font-size:14px">${fmt(p.prazo)}</div></div></div>
+<div class="cards"><div class="card"><div class="lbl">Etapa atual</div><div class="val" style="font-size:13px">${p.etapa||'Início'}</div></div><div class="card"><div class="lbl">Progresso</div><div class="val">${p.pct||0}%</div></div><div class="card"><div class="lbl">Próximo prazo</div><div class="val" style="font-size:14px">${fmt(p.prazo)}</div></div></div>
 <div class="bar"><div class="fill" style="width:${p.pct||0}%"></div></div>
-${whats?`<a href="${whats}" target="_blank" class="wa">💬 Grupo WhatsApp do projeto</a>`:''}
-${p.drive?`<a href="${p.drive}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin:6px 0">📂 Arquivos do projeto</a>`:''}
-${atas.length>0?`<div class="sec"><div class="sec-t">📄 Atas de reunião</div>
-${atas.map(a=>`<div class="ata">
-  <div class="ata-titulo">${a.titulo}</div>
-  <div class="ata-meta">📅 ${fmt(a.data)}${a.hora?' às '+a.hora:''} ${a.partic?'· '+a.partic:''}</div>
-  <div class="ata-sec">O que foi decidido</div>
-  <div class="ata-txt">${a.decidido||'—'}</div>
-  ${a.acoes?`<div class="ata-sec" style="margin-top:8px">Próximos passos</div><div class="ata-txt">${a.acoes}</div>`:''}
-  ${a.drive?`<a href="${a.drive}" target="_blank" style="color:#2d5be3;font-size:12px;display:inline-block;margin-top:6px">📂 Ver arquivo ↗</a>`:''}
-</div>`).join('')}
-</div>`:''}
-<div class="footer">Gerado por BM Office &nbsp;·&nbsp; ${new Date().toLocaleDateString('pt-BR')}<br>Bianco Marinho Arquitetura, Interiores e Engenharia</div>
-</div></body></html>`;
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${whats?`<a href="${whats}" target="_blank" class="wa">💬 WhatsApp do projeto</a>`:''}${p.drive?`<a href="${p.drive}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a73e8;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">📂 Arquivos do projeto</a>`:''}</div>
+<div class="sec"><div class="sec-t">📋 Acompanhamento das etapas</div>${etapasHtml}</div>
+${atasHtml}
+<div class="sec"><div class="sec-t">💬 Enviar uma observação</div>
+<p style="font-size:13px;color:#6b6860;margin-bottom:14px">Tem alguma dúvida ou observação? Preencha abaixo e retornaremos em breve.</p>
+<input class="fi" id="obs-nome" placeholder="Seu nome">
+<input type="email" class="fi" id="obs-email" placeholder="Seu email">
+<textarea class="fi" id="obs-msg" placeholder="Sua mensagem..." style="resize:vertical;min-height:90px"></textarea>
+<button class="btn-send" onclick="enviarObs()" id="btn-obs">Enviar observação</button>
+<div class="msg-ok" id="msg-ok">✅ Mensagem enviada! Retornaremos em breve.</div>
+<div class="msg-err" id="msg-err">❌ Erro ao enviar. Entre em contato pelo WhatsApp.</div>
+</div>
+<div class="footer">Gerado por BM Office · ${new Date().toLocaleDateString('pt-BR')}<br>Bianco Marinho Arquitetura, Interiores e Engenharia</div>
+</div>
+<script>
+const EID='${EMAILJS_SERVICE_ID}',ETPL='${EMAILJS_TEMPLATE_ID}',EKEY='${EMAILJS_PUBLIC_KEY}',ECFG=${EMAILJS_CONFIGURED},EPROJ='${p.nome}';
+if(ECFG){try{emailjs.init(EKEY);}catch(e){}}
+async function enviarObs(){
+  const nome=document.getElementById('obs-nome').value.trim();
+  const email=document.getElementById('obs-email').value.trim();
+  const msg=document.getElementById('obs-msg').value.trim();
+  if(!nome||!msg){alert('Preencha seu nome e a mensagem.');return;}
+  const btn=document.getElementById('btn-obs');btn.disabled=true;btn.textContent='Enviando...';
+  if(!ECFG){window.location.href='mailto:?subject='+encodeURIComponent('Observação — '+EPROJ)+'&body='+encodeURIComponent('Nome: '+nome+'\nEmail: '+email+'\n\n'+msg);btn.disabled=false;btn.textContent='Enviar observação';return;}
+  try{await emailjs.send(EID,ETPL,{client_name:nome,client_email:email,project_name:EPROJ,message:msg},EKEY);document.getElementById('msg-ok').style.display='block';document.getElementById('obs-nome').value='';document.getElementById('obs-email').value='';document.getElementById('obs-msg').value='';}
+  catch(e){document.getElementById('msg-err').style.display='block';}
+  btn.disabled=false;btn.textContent='Enviar observação';
+}
+<\/script>
+</body></html>`;
 
     const w=window.open('','_blank');
     w.document.write(_cpHtml);w.document.close();
