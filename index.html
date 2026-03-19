@@ -369,7 +369,7 @@ tbody tr:hover td{background:var(--bg)}
   <div class="page" id="pg-projetos">
     <div class="sec-hdr">
       <div><div class="sec-title">Projetos</div></div>
-      <button class="btn btn-primary" onclick="novoProj()">+ Novo projeto</button>
+      <button class="btn btn-primary" onclick="openM('m-proj')">+ Novo projeto</button>
     </div>
     <div id="proj-list"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
   </div>
@@ -488,7 +488,7 @@ tbody tr:hover td{background:var(--bg)}
   <div class="page" id="pg-clientes">
     <div class="sec-hdr">
       <div><div class="sec-title">Clientes</div></div>
-      <button class="btn btn-primary" onclick="novoCli()">+ Novo cliente</button>
+      <button class="btn btn-primary" onclick="openM('m-cli')">+ Novo cliente</button>
     </div>
     <div class="tabs">
       <button class="tab on" onclick="cliTab('todos',this)">Todos</button>
@@ -496,7 +496,7 @@ tbody tr:hover td{background:var(--bg)}
       <button class="tab" onclick="cliTab('aniversarios',this)">🎂 Aniversários</button>
     </div>
     <div class="tbox"><table><thead><tr>
-      <th>Nome</th><th>Telefone</th><th>Email</th><th>Aniversário</th><th>Origem</th><th>Follow-up</th><th>Status</th><th></th>
+      <th>Nome</th><th>Tipo</th><th>Telefone</th><th>Origem</th><th>Follow-up</th><th>Status</th><th></th>
     </tr></thead><tbody id="tbody-cli"></tbody></table></div>
   </div>
 
@@ -575,15 +575,13 @@ tbody tr:hover td{background:var(--bg)}
   <div class="modal-body">
     <input type="hidden" id="proj-id">
     <div class="frow">
-    <div class="fg"><label class="fl">Código *</label><input class="fi" id="proj-cod" placeholder="ARQ-001"></div>
+      <div class="fg"><label class="fl">Código *</label><input class="fi" id="proj-cod" placeholder="ARQ-001"></div>
+      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="proj-tipo"><option>Arq+Int</option><option>Arquitetura</option><option>Interiores</option><option>Reforma</option><option>Comercial</option></select></div>
+    </div>
     <div class="fg"><label class="fl">Nome do projeto *</label><input class="fi" id="proj-nome"></div>
     <div class="frow">
-      <div class="fg"><label class="fl">Cliente 1 *</label><select class="fs" id="proj-cli"></select></div>
-      <div class="fg"><label class="fl">Cliente 2 (cônjuge/sócio)</label><select class="fs" id="proj-cli2"></select></div>
-    </div>
-    <div class="frow">
+      <div class="fg"><label class="fl">Cliente</label><select class="fs" id="proj-cli"></select></div>
       <div class="fg"><label class="fl">Responsável</label><select class="fs" id="proj-resp"><option>Raysa</option><option>Caio</option><option>Ivie</option></select></div>
-      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="proj-tipo"><option>Arq+Int</option><option>Arquitetura</option><option>Interiores</option><option>Reforma</option><option>Comercial</option></select></div>
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Data início</label><input type="date" class="fi" id="proj-ini"></div>
@@ -689,25 +687,27 @@ tbody tr:hover td{background:var(--bg)}
 </div></div>
 
 <!-- CLIENTE -->
-<div class="overlay" id="m-cli"><div class="modal wide">
+<div class="overlay" id="m-cli"><div class="modal">
   <div class="modal-hdr"><div class="modal-title" id="m-cli-title">Novo Cliente</div><button class="mclose" onclick="closeM('m-cli')">✕</button></div>
   <div class="modal-body">
     <input type="hidden" id="cli-id">
-    <div class="fg"><label class="fl">Nome completo *</label><input class="fi" id="cli-nome" placeholder="Ex: João Carlos Silva"></div>
     <div class="frow">
-      <div class="fg"><label class="fl">Telefone</label><input class="fi" id="cli-tel" placeholder="(11) 99999-9999"></div>
-      <div class="fg"><label class="fl">Email</label><input class="fi" id="cli-email" type="email" placeholder="joao@email.com"></div>
+      <div class="fg"><label class="fl">Nome *</label><input class="fi" id="cli-nome"></div>
+      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="cli-tipo"><option>PF</option><option>PJ</option></select></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Telefone</label><input class="fi" id="cli-tel"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="cli-email" type="email"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">Origem</label><select class="fs" id="cli-origem"><option>Instagram</option><option>Indicação</option><option>Google</option><option>LinkedIn</option><option>WhatsApp</option><option>Outro</option></select></div>
+      <div class="fg"><label class="fl">Próx. follow-up</label><input type="date" class="fi" id="cli-fu"></div>
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Aniversário</label><input type="date" class="fi" id="cli-nasc"></div>
       <div class="fg"><label class="fl">Status</label><select class="fs" id="cli-status"><option>Cliente Ativo</option><option>Lead</option><option>Proposta enviada</option><option>Perdido</option></select></div>
     </div>
-    <div class="fg"><label class="fl">Endereço</label><input class="fi" id="cli-end" placeholder="Rua, número, bairro, cidade"></div>
-    <div class="frow">
-      <div class="fg"><label class="fl">Origem</label><select class="fs" id="cli-origem"><option>Instagram</option><option>Indicação</option><option>Google</option><option>LinkedIn</option><option>WhatsApp</option><option>Outro</option></select></div>
-      <div class="fg"><label class="fl">Próx. follow-up</label><input type="date" class="fi" id="cli-fu"></div>
-    </div>
-    <div class="fg"><label class="fl">Observações</label><textarea class="fta" id="cli-obs" style="min-height:60px"></textarea></div>
+    <div class="fg"><label class="fl">Histórico / Observações</label><textarea class="fta" id="cli-obs"></textarea></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('m-cli')">Cancelar</button><button class="btn btn-primary" onclick="salvarCli()">Salvar</button></div>
 </div></div>
@@ -1097,7 +1097,7 @@ function refreshSels() {
   const projOpts = '<option value="">—</option>' + _projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join('');
   const cliOpts  = '<option value="">—</option>' + _clientes.map(c=>`<option>${c.nome}</option>`).join('');
   ['tar-proj','ev-proj','sel-cp-proj'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=id==='sel-cp-proj'?'<option value="">Selecione...</option>'+_projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join(''):projOpts;});
-  ['proj-cli','proj-cli2','prop-cli','fin-proj'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cliOpts;});
+  ['proj-cli','prop-cli','fin-proj'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cliOpts;});
   // Chat project channels
   const ch=document.getElementById('chat-proj-channels');
   if(ch) ch.innerHTML=_projetos.slice(0,6).map(p=>`<div class="chat-channel" id="ch-${p.id}" onclick="switchChannel('${p.id}','${p.cod}')"><span>#</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.cod}</span></div>`).join('');
@@ -1734,7 +1734,7 @@ function renderProjs() {
     snap.docs.map(d=>{const p=d.data();return`<tr>
       <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${p.cod}</td>
       <td><strong style="cursor:pointer;color:var(--acc)" onclick="abrirProj('${d.id}')">${p.nome}</strong></td>
-      <td>${p.cli||'—'}${p.cli2?` + ${p.cli2}`:''}</td>
+      <td>${p.cli||'—'}</td>
       <td style="min-width:110px">${prog(p.pct||0)}</td>
       <td style="color:${isPast(p.prazo)?'var(--red)':''}">${fmt(p.prazo)}</td>
       <td>${p.resp||'—'}</td><td>${sBadge(p.status)}</td>
@@ -1758,7 +1758,7 @@ function abrirProj(id) {
           <div class="proj-title">${p.nome}</div>
           <div class="proj-meta">
             ${badge(p.tipo||'','b-gray')}
-            <span>👤 ${p.cli||'—'}${p.cli2?' + '+p.cli2:''}</span>
+            <span>👤 ${p.cli||'—'}</span>
             <span>👷 ${p.resp||'—'}</span>
             <span>📅 ${fmt(p.prazo)}</span>
             ${sBadge(p.status)}
@@ -2179,35 +2179,11 @@ function editProj(id) {
     document.getElementById('proj-drive').value=p.drive||'';
     document.getElementById('proj-template').value=p.template||'arq';
     document.getElementById('proj-obs').value=p.obs||'';
-    // Set clientes
+    // Set cliente
     const cs=document.getElementById('proj-cli');
     if(cs){[...cs.options].forEach(o=>{if(o.text===p.cli)o.selected=true;});}
-    const cs2=document.getElementById('proj-cli2');
-    if(cs2){[...cs2.options].forEach(o=>{o.selected=(o.text===(p.cli2||''));});}
     openM('m-proj');
   });
-}
-
-function novoProj() {
-  // Limpa todos os campos do modal antes de abrir
-  document.getElementById('proj-id').value = '';
-  document.getElementById('m-proj-title').textContent = 'Novo Projeto';
-  document.getElementById('proj-cod').value = '';
-  document.getElementById('proj-nome').value = '';
-  document.getElementById('proj-tipo').value = 'Arq+Int';
-  document.getElementById('proj-resp').value = 'Raysa';
-  document.getElementById('proj-ini').value = '';
-  document.getElementById('proj-prazo').value = '';
-  document.getElementById('proj-hon').value = '';
-  document.getElementById('proj-status').value = 'Em andamento';
-  document.getElementById('proj-drive').value = '';
-  document.getElementById('proj-template').value = 'arq';
-  document.getElementById('proj-obs').value = '';
-  document.getElementById('proj-cli2').value = '';
-  // Limpa seleção de cliente
-  const cs = document.getElementById('proj-cli');
-  if(cs) cs.selectedIndex = 0;
-  openM('m-proj');
 }
 
 async function salvarProj() {
@@ -2217,7 +2193,6 @@ async function salvarProj() {
     nome:document.getElementById('proj-nome').value.trim(),
     tipo:document.getElementById('proj-tipo').value,
     cli:document.getElementById('proj-cli').value,
-    cli2:document.getElementById('proj-cli2').value,
     resp:document.getElementById('proj-resp').value,
     ini:document.getElementById('proj-ini').value,
     prazo:document.getElementById('proj-prazo').value,
@@ -2619,12 +2594,10 @@ function renderClis() {
     if(_cliTab==='ativos') cls=cls.filter(c=>c.status==='Cliente Ativo');
     else if(_cliTab==='aniversarios'){const m=new Date().getMonth()+1;cls=cls.filter(c=>{if(!c.nasc)return false;return parseInt(c.nasc.split('-')[1])===m;});}
     document.getElementById('tbody-cli').innerHTML=cls.length===0
-      ?'<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">Nenhum cliente</td></tr>'
+      ?'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">Nenhum cliente</td></tr>'
       :cls.map(c=>`<tr>
-        <td><strong>${c.nome}</strong>${c.end?`<div style="font-size:11px;color:var(--text3)">📍 ${c.end}</div>`:''}</td>
-        <td>${c.tel||'—'}</td>
-        <td style="font-size:12px">${c.email||'—'}</td>
-        <td>${c.nasc?`🎂 ${fmt(c.nasc)}`:'—'}</td>
+        <td><strong>${c.nome}</strong>${c.nasc?`<div style="font-size:11px;color:var(--text3)">🎂 ${fmt(c.nasc)}</div>`:''}</td>
+        <td>${badge(c.tipo||'PF','b-gray')}</td><td>${c.tel||'—'}</td>
         <td>${badge(c.origem||'','b-gray')}</td>
         <td style="color:${c.fu&&c.fu<=today()?'var(--red)':''}">${fmt(c.fu)}</td>
         <td>${sBadge(c.status)}</td>
@@ -2636,39 +2609,13 @@ function renderClis() {
   });
 }
 
-function novoCli() {
-  const modal = document.getElementById('m-cli');
-  if (!modal) {
-    console.error('Modal m-cli não encontrado');
-    return;
-  }
-
-  const cliId = document.getElementById('cli-id');
-  const title = document.getElementById('m-cli-title');
-  const status = document.getElementById('cli-status');
-  const origem = document.getElementById('cli-origem');
-
-  if (cliId) cliId.value = '';
-  if (title) title.textContent = 'Novo Cliente';
-
-  ['nome','tel','email','nasc','end','fu','obs'].forEach(k => {
-    const el = document.getElementById('cli-' + k);
-    if (el) el.value = '';
-  });
-
-  if (status) status.value = 'Cliente Ativo';
-  if (origem) origem.value = 'Indicação';
-
-  openM('m-cli');
-}
-}
-
 function editCli(id){
   db.collection('clientes').doc(id).get().then(d=>{
     const c=d.data();
     document.getElementById('cli-id').value=id;
     document.getElementById('m-cli-title').textContent='Editar Cliente';
-    ['nome','tel','email','fu','nasc','end','obs'].forEach(k=>{const el=document.getElementById('cli-'+k);if(el)el.value=c[k]||'';});
+    ['nome','tel','email','fu','nasc','obs'].forEach(k=>{const el=document.getElementById('cli-'+k);if(el)el.value=c[k]||'';});
+    document.getElementById('cli-tipo').value=c.tipo||'PF';
     document.getElementById('cli-origem').value=c.origem||'Indicação';
     document.getElementById('cli-status').value=c.status||'Cliente Ativo';
     openM('m-cli');
@@ -2679,12 +2626,12 @@ async function salvarCli(){
   const id=document.getElementById('cli-id').value;
   const c={
     nome:document.getElementById('cli-nome').value.trim(),
+    tipo:document.getElementById('cli-tipo').value,
     tel:document.getElementById('cli-tel').value,
     email:document.getElementById('cli-email').value,
-    nasc:document.getElementById('cli-nasc').value,
-    end:document.getElementById('cli-end').value,
     origem:document.getElementById('cli-origem').value,
     fu:document.getElementById('cli-fu').value,
+    nasc:document.getElementById('cli-nasc').value,
     status:document.getElementById('cli-status').value,
     obs:document.getElementById('cli-obs').value,
     updatedBy:myName(),
@@ -3031,7 +2978,7 @@ function gerarCP(){
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"><\/script>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f3f0;color:#1c1b18;padding:0 0 60px}.hdr{background:#2d5be3;color:#fff;padding:26px 24px}.logo{font-size:11px;font-weight:600;letter-spacing:.1em;opacity:.6;margin-bottom:8px}.title{font-size:24px;font-weight:700;margin-bottom:3px}.sub{font-size:13px;opacity:.7}.cont{max-width:680px;margin:0 auto;padding:0 16px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.card{background:#fff;border-radius:10px;padding:13px 15px;border:1px solid #e2e0db}.lbl{font-size:10px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.val{font-size:18px;font-weight:700;color:#2d5be3}.bar{height:6px;background:#e8e6e1;border-radius:6px;overflow:hidden;margin:0 0 14px}.fill{height:100%;background:#2d5be3;border-radius:6px}.sec{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #e2e0db}.sec-t{font-size:14px;font-weight:600;margin-bottom:12px}.etapa-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0ede8}.etapa-row:last-child{border-bottom:none}.etapa-nome{font-size:13px;flex:1}.etapa-badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}.b-green{background:#e6f5ec;color:#2a7a45}.b-amber{background:#fdf4d7;color:#8a6000}.b-gray{background:#f4f3f0;color:#6b6860}.b-red{background:#fdeaea;color:#b03030}.ata{padding:12px 0;border-bottom:1px solid #f0ede8}.ata:last-child{border-bottom:none}.ata-titulo{font-size:13px;font-weight:600;margin-bottom:4px}.ata-meta{font-size:11px;color:#a09d97;margin-bottom:8px}.ata-sec{font-size:11px;font-weight:600;color:#a09d97;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.ata-txt{font-size:13px;color:#3d3d3a;white-space:pre-wrap;line-height:1.55}.fi{width:100%;padding:10px 14px;border:1px solid #e2e0db;border-radius:8px;font-size:13px;font-family:inherit;color:#1c1b18;background:#fff;outline:none;margin-bottom:10px}.fi:focus{border-color:#2d5be3}.btn-send{background:#2d5be3;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%}.msg-ok{background:#e6f5ec;color:#2a7a45;padding:10px 14px;border-radius:8px;font-size:13px;display:none;margin-top:8px;text-align:center}.msg-err{background:#fdeaea;color:#b03030;padding:10px 14px;border-radius:8px;font-size:13px;display:none;margin-top:8px;text-align:center}.footer{text-align:center;font-size:11px;color:#a09d97;padding:24px;border-top:1px solid #e2e0db;margin-top:12px}${whats?'.wa{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin:6px 0}':''}
 </style></head><body>
-<div class="hdr"><div class="cont"><div class="logo">BM OFFICE</div><div class="title">${p.nome}</div><div class="sub">Cliente: ${p.cli||'—'}${p.cli2?' + '+p.cli2:''} · ${p.cod}</div></div></div>
+<div class="hdr"><div class="cont"><div class="logo">BM OFFICE</div><div class="title">${p.nome}</div><div class="sub">Cliente: ${p.cli||'—'} · ${p.cod}</div></div></div>
 <div class="cont">
 <div class="cards"><div class="card"><div class="lbl">Etapa atual</div><div class="val" style="font-size:13px">${p.etapa||'Início'}</div></div><div class="card"><div class="lbl">Progresso</div><div class="val">${p.pct||0}%</div></div><div class="card"><div class="lbl">Próximo prazo</div><div class="val" style="font-size:14px">${fmt(p.prazo)}</div></div></div>
 <div class="bar"><div class="fill" style="width:${p.pct||0}%"></div></div>
@@ -3069,35 +3016,6 @@ async function enviarObs(){
     const w=window.open('','_blank');
     w.document.write(_cpHtml);w.document.close();
   });
-}
-
-function renderCPPage(){
-  const sel=document.getElementById('sel-cp-proj');
-  if(sel) sel.innerHTML='<option value="">Selecione...</option>'+_projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join('');
-  document.getElementById('cp-preview').innerHTML='';
-}
-
-function previewCP(){
-  const id=document.getElementById('sel-cp-proj').value;
-  if(!id){document.getElementById('cp-preview').innerHTML='';return;}
-  const p=_projetos.find(x=>x.id===id);
-  if(!p) return;
-  document.getElementById('cp-preview').innerHTML=`
-    <div class="tbox">
-      <div class="tbox-hdr"><div class="tbox-title">Pré-visualização</div></div>
-      <div style="padding:16px">
-        <div style="background:var(--acc);color:#fff;border-radius:var(--r2);padding:18px;margin-bottom:12px">
-          <div style="font-size:11px;opacity:.7;font-family:var(--mono)">${p.cod}</div>
-          <div style="font-size:20px;font-weight:700">${p.nome}</div>
-          <div style="font-size:13px;opacity:.8">Cliente: ${p.cli||'—'}${p.cli2?' + '+p.cli2:''}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Etapa</div><div style="font-size:13px;font-weight:600">${p.etapa||'EP0'}</div></div>
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Progresso</div><div style="font-size:18px;font-weight:700;color:var(--acc)">${p.pct||0}%</div></div>
-          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Prazo</div><div style="font-size:13px;font-weight:600">${fmt(p.prazo)}</div></div>
-        </div>
-      </div>
-    </div>`;
 }
 
 function copiarCP(){if(!_cpHtml){gerarCP();return;}navigator.clipboard.writeText(_cpHtml).then(()=>alert('HTML copiado!'));}
