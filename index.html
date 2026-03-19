@@ -488,7 +488,7 @@ tbody tr:hover td{background:var(--bg)}
   <div class="page" id="pg-clientes">
     <div class="sec-hdr">
       <div><div class="sec-title">Clientes</div></div>
-      <button class="btn btn-primary" onclick="openM('m-cli')">+ Novo cliente</button>
+      <button class="btn btn-primary" onclick="novoCli()">+ Novo cliente</button>
     </div>
     <div class="tabs">
       <button class="tab on" onclick="cliTab('todos',this)">Todos</button>
@@ -2636,6 +2636,18 @@ function renderClis() {
   });
 }
 
+function novoCli() {
+  document.getElementById('cli-id').value = '';
+  document.getElementById('m-cli-title').textContent = 'Novo Cliente';
+  ['nome','tel','email','nasc','end','fu','obs'].forEach(k=>{
+    const el=document.getElementById('cli-'+k);
+    if(el) el.value='';
+  });
+  document.getElementById('cli-status').value = 'Cliente Ativo';
+  document.getElementById('cli-origem').value = 'Indicação';
+  openM('m-cli');
+}
+
 function editCli(id){
   db.collection('clientes').doc(id).get().then(d=>{
     const c=d.data();
@@ -3042,6 +3054,35 @@ async function enviarObs(){
     const w=window.open('','_blank');
     w.document.write(_cpHtml);w.document.close();
   });
+}
+
+function renderCPPage(){
+  const sel=document.getElementById('sel-cp-proj');
+  if(sel) sel.innerHTML='<option value="">Selecione...</option>'+_projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join('');
+  document.getElementById('cp-preview').innerHTML='';
+}
+
+function previewCP(){
+  const id=document.getElementById('sel-cp-proj').value;
+  if(!id){document.getElementById('cp-preview').innerHTML='';return;}
+  const p=_projetos.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('cp-preview').innerHTML=`
+    <div class="tbox">
+      <div class="tbox-hdr"><div class="tbox-title">Pré-visualização</div></div>
+      <div style="padding:16px">
+        <div style="background:var(--acc);color:#fff;border-radius:var(--r2);padding:18px;margin-bottom:12px">
+          <div style="font-size:11px;opacity:.7;font-family:var(--mono)">${p.cod}</div>
+          <div style="font-size:20px;font-weight:700">${p.nome}</div>
+          <div style="font-size:13px;opacity:.8">Cliente: ${p.cli||'—'}${p.cli2?' + '+p.cli2:''}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Etapa</div><div style="font-size:13px;font-weight:600">${p.etapa||'EP0'}</div></div>
+          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Progresso</div><div style="font-size:18px;font-weight:700;color:var(--acc)">${p.pct||0}%</div></div>
+          <div style="background:var(--bg2);border-radius:var(--r);padding:12px"><div style="font-size:10px;color:var(--text3)">Prazo</div><div style="font-size:13px;font-weight:600">${fmt(p.prazo)}</div></div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function copiarCP(){if(!_cpHtml){gerarCP();return;}navigator.clipboard.writeText(_cpHtml).then(()=>alert('HTML copiado!'));}
