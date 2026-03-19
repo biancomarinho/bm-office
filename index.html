@@ -2637,15 +2637,30 @@ function renderClis() {
 }
 
 function novoCli() {
-  document.getElementById('cli-id').value = '';
-  document.getElementById('m-cli-title').textContent = 'Novo Cliente';
-  ['nome','tel','email','nasc','end','fu','obs'].forEach(k=>{
-    const el=document.getElementById('cli-'+k);
-    if(el) el.value='';
+  const modal = document.getElementById('m-cli');
+  if (!modal) {
+    console.error('Modal m-cli não encontrado');
+    return;
+  }
+
+  const cliId = document.getElementById('cli-id');
+  const title = document.getElementById('m-cli-title');
+  const status = document.getElementById('cli-status');
+  const origem = document.getElementById('cli-origem');
+
+  if (cliId) cliId.value = '';
+  if (title) title.textContent = 'Novo Cliente';
+
+  ['nome','tel','email','nasc','end','fu','obs'].forEach(k => {
+    const el = document.getElementById('cli-' + k);
+    if (el) el.value = '';
   });
-  document.getElementById('cli-status').value = 'Cliente Ativo';
-  document.getElementById('cli-origem').value = 'Indicação';
+
+  if (status) status.value = 'Cliente Ativo';
+  if (origem) origem.value = 'Indicação';
+
   openM('m-cli');
+}
 }
 
 function editCli(id){
