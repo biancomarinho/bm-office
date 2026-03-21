@@ -260,23 +260,6 @@ tbody tr:hover td{background:var(--bg)}
 
 /* ── POST STATUS ── */
 .post-plat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-
-/* ── TOAST NOTIFICAÇÃO ── */
-.toast{position:fixed;bottom:24px;right:24px;background:#1c1b18;color:#fff;border-radius:var(--r2);padding:16px 18px;z-index:2000;box-shadow:var(--sh3);font-size:13px;max-width:380px;animation:toastIn .25s ease;display:flex;align-items:flex-start;gap:12px}
-.toast-close{background:none;border:none;color:#fff;cursor:pointer;font-size:16px;padding:0 0 0 8px;opacity:.5;line-height:1;flex-shrink:0}
-.toast-close:hover{opacity:1}
-@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-
-/* ── WHATSAPP REMINDER ── */
-.wa-remind-box{background:#e7fce8;border:1px solid #b3e6b5;border-radius:var(--r2);padding:16px 18px;margin-bottom:16px}
-.wa-remind-title{font-size:13px;font-weight:600;color:#1a5e1c;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.wa-cli-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #c8e6c9;font-size:13px}
-.wa-cli-row:last-child{border-bottom:none}
-.wa-cli-info{flex:1}
-.wa-cli-nome{font-weight:500;color:#1c1b18}
-.wa-cli-tel{font-size:11px;color:#6b6860;margin-top:1px}
-.btn-wa{display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)}
-.btn-wa:hover{background:#128C7E}
 </style>
 </head>
 <body>
@@ -424,7 +407,7 @@ tbody tr:hover td{background:var(--bg)}
   <div class="page" id="pg-propostas">
     <div class="sec-hdr">
       <div><div class="sec-title">Propostas</div></div>
-      <button class="btn btn-primary" onclick="novoProp()">+ Nova proposta</button>
+      <button class="btn btn-primary" onclick="openM('m-proposta')">+ Nova proposta</button>
     </div>
     <div id="propostas-kanban"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
   </div>
@@ -566,7 +549,6 @@ tbody tr:hover td{background:var(--bg)}
       <button class="btn btn-primary" onclick="gerarCP()">🔗 Gerar e abrir</button>
       <button class="btn btn-ghost" style="margin-left:8px" onclick="copiarCP()">📋 Copiar HTML</button>
     </div>
-    <div id="cp-whats-remind"></div>
     <div id="cp-preview"></div>
   </div>
 
@@ -593,9 +575,8 @@ tbody tr:hover td{background:var(--bg)}
   <div class="modal-body">
     <input type="hidden" id="proj-id">
     <div class="frow">
-      <div class="fg"><label class="fl">Código *</label><input class="fi" id="proj-cod" placeholder="ARQ-001"></div>
-      <div class="fg"><label class="fl">Nome do projeto *</label><input class="fi" id="proj-nome"></div>
-    </div>
+    <div class="fg"><label class="fl">Código *</label><input class="fi" id="proj-cod" placeholder="ARQ-001"></div>
+    <div class="fg"><label class="fl">Nome do projeto *</label><input class="fi" id="proj-nome"></div>
     <div class="frow">
       <div class="fg"><label class="fl">Cliente 1 *</label><select class="fs" id="proj-cli"></select></div>
       <div class="fg"><label class="fl">Cliente 2 (cônjuge/sócio)</label><select class="fs" id="proj-cli2"></select></div>
@@ -1032,40 +1013,6 @@ function prog(pct,color='var(--acc)'){
   return`<div style="display:flex;align-items:center;gap:8px"><div class="prog-wrap" style="flex:1"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div><span style="font-size:11px;font-weight:600;color:var(--text2);min-width:30px">${pct}%</span></div>`;
 }
 
-// ── TOAST NOTIFICATION ──
-function showToast(html, duration=12000) {
-  const existing = document.getElementById('toast-notif');
-  if (existing) existing.remove();
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.id = 'toast-notif';
-  el.innerHTML = `<div style="flex:1">${html}</div><button class="toast-close" onclick="document.getElementById('toast-notif').remove()">✕</button>`;
-  document.body.appendChild(el);
-  if (duration > 0) setTimeout(()=>{ if(el.parentNode) el.remove(); }, duration);
-}
-
-// ── WHATSAPP LEMBRETE ──
-function whatsappLembrete(tel, nome, projeto, pct, etapa) {
-  if (!tel) { alert('Este cliente não tem telefone cadastrado.'); return; }
-  const num = tel.replace(/\D/g, '');
-  const numBR = num.startsWith('55') ? num : '55' + num;
-  const etapaStr = etapa && etapa !== 'EP0-Início' ? `\nEtapa atual: *${etapa}*` : '';
-  const msg =
-    `Olá, ${nome}! 😊\n\n` +
-    `Passando para dar um update sobre o seu projeto *${projeto}*.\n\n` +
-    `✅ Progresso atual: *${pct || 0}%*${etapaStr}\n\n` +
-    `Qualquer dúvida ou observação, estamos à disposição!\n\n` +
-    `_Bianco Marinho Arquitetura, Interiores e Engenharia_`;
-  window.open(`https://wa.me/${numBR}?text=${encodeURIComponent(msg)}`, '_blank');
-}
-
-function whatsappMensagem(tel, nome, mensagem) {
-  if (!tel) { alert('Este cliente não tem telefone cadastrado.'); return; }
-  const num = tel.replace(/\D/g, '');
-  const numBR = num.startsWith('55') ? num : '55' + num;
-  window.open(`https://wa.me/${numBR}?text=${encodeURIComponent(mensagem)}`, '_blank');
-}
-
 // Audit trail helper
 async function logAudit(action, collection, docId, details='') {
   try {
@@ -1135,12 +1082,6 @@ function quickAdd(){openM('m-tar');}
 // POPULATE SELECTS
 // ══════════════════════════════════════════════════════
 let _projetos = [], _clientes = [];
-
-// Unsubscribe functions para evitar múltiplos listeners (bug de stacking)
-let _unsubProjs = null;
-let _unsubClis = null;
-let _unsubProps = null;
-let _unsubTarefas = null;
 
 async function loadSelects() {
   const [ps, cs] = await Promise.all([
@@ -1786,8 +1727,7 @@ function getCKTPL(tipo) {
 
 
 function renderProjs() {
-  if (_unsubProjs) { _unsubProjs(); _unsubProjs = null; }
-  _unsubProjs = db.collection('projetos').orderBy('cod').onSnapshot(snap=>{
+  db.collection('projetos').orderBy('cod').onSnapshot(snap=>{
     const el=document.getElementById('proj-list');
     if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-ico">📁</div><div class="empty-title">Nenhum projeto</div></div>';return;}
     el.innerHTML=`<table class="tbox"><thead><tr><th>Código</th><th>Projeto</th><th>Cliente</th><th>Progresso</th><th>Prazo</th><th>Resp.</th><th>Status</th><th></th></tr></thead><tbody>`+
@@ -2310,8 +2250,7 @@ function tarView(v){
 }
 
 function renderTarefas() {
-  if (_unsubTarefas) { _unsubTarefas(); _unsubTarefas = null; }
-  _unsubTarefas = db.collection('tarefas').orderBy('prazo').onSnapshot(snap=>{
+  db.collection('tarefas').orderBy('prazo').onSnapshot(snap=>{
     const el=document.getElementById('tar-content');
     const tarefas=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(_tarView==='kanban'){
@@ -2430,8 +2369,7 @@ async function salvarTar() {
 // PROPOSTAS
 // ══════════════════════════════════════════════════════
 function renderPropostas() {
-  if (_unsubProps) { _unsubProps(); _unsubProps = null; }
-  _unsubProps = db.collection('propostas').orderBy('createdAt','desc').onSnapshot(snap=>{
+  db.collection('propostas').orderBy('createdAt','desc').onSnapshot(snap=>{
     const cols=['A fazer','Enviada','Fechada','Recusada'];
     const cls=['b-gray','b-blue','b-green','b-red'];
     const props=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -2449,23 +2387,10 @@ function renderPropostas() {
         </div>`).join('')}
         ${total>0?`<div style="padding:8px;font-size:12px;font-weight:600;color:var(--text2);border-top:1px solid var(--border);text-align:center">${fmtR(total)}</div>`:''}
         </div>
-        <div style="padding:8px;border-top:1px solid var(--border)"><button class="btn btn-ghost btn-xs" style="width:100%" onclick="novoProp()">+ Nova</button></div>
+        <div style="padding:8px;border-top:1px solid var(--border)"><button class="btn btn-ghost btn-xs" style="width:100%" onclick="openM('m-proposta')">+ Nova</button></div>
       </div>`;
     }).join('')+`</div>`;
   });
-}
-
-function novoProp() {
-  document.getElementById('prop-id').value = '';
-  document.getElementById('m-prop-title').textContent = 'Nova Proposta';
-  document.getElementById('prop-nome').value = '';
-  document.getElementById('prop-tipo').value = 'Projeto de Interiores';
-  document.getElementById('prop-valor').value = '';
-  document.getElementById('prop-status').value = 'A fazer';
-  document.getElementById('prop-obs').value = '';
-  const cs = document.getElementById('prop-cli');
-  if(cs) cs.selectedIndex = 0;
-  openM('m-proposta');
 }
 
 function editProp(id) {
@@ -2618,42 +2543,8 @@ async function salvarEv() {
     createdAt:firebase.firestore.FieldValue.serverTimestamp(),
   };
   if(!e.titulo||!e.data){alert('Título e data obrigatórios');return;}
-
-  if(id) {
-    await db.collection('eventos').doc(id).set(e, {merge:true});
-    await logAudit('editou evento','eventos',id,e.titulo);
-  } else {
-    const ref = await db.collection('eventos').add(e);
-    await logAudit('criou evento','eventos',ref.id,e.titulo);
-
-    // Gerar link Google Calendar e mostrar notificação
-    const gcLink = googleCalLink(e);
-    const dataHora = fmt(e.data) + (e.hora ? ` às ${e.hora}` : ' (dia todo)');
-    const localStr = e.local ? `<div style="font-size:11px;opacity:.6;margin-top:2px">📍 ${e.local}</div>` : '';
-    const particStr = e.partic ? `<div style="font-size:11px;opacity:.6;margin-top:2px">👥 ${e.partic}</div>` : '';
-
-    showToast(`
-      <div style="font-weight:600;margin-bottom:5px;font-size:14px">📅 Evento criado!</div>
-      <div style="font-size:13px;opacity:.9;margin-bottom:4px">${e.titulo}</div>
-      <div style="font-size:11px;opacity:.6;margin-bottom:10px">🗓 ${dataHora}${localStr}${particStr}</div>
-      <a href="${gcLink}" target="_blank"
-        style="display:inline-flex;align-items:center;gap:7px;background:#4285f4;color:#fff;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;margin-bottom:6px">
-        <span style="font-size:15px">📆</span> Adicionar ao Google Agenda
-      </a>
-      <div style="font-size:10px;opacity:.45;margin-top:6px">Compartilhe este link com a equipe para que cada um adicione à sua agenda.</div>
-    `, 18000);
-
-    // Notificar equipe no chat #geral
-    try {
-      await db.collection('chat').doc('geral').collection('messages').add({
-        text: `📅 *Novo evento:* ${e.titulo} — ${dataHora}${e.partic ? ' · ' + e.partic : ''}${e.local ? ' · ' + e.local : ''}\n🔗 Adicionar ao Google Agenda: ${gcLink}`,
-        email: CUR?.email || '',
-        name: myName(),
-        color: myColor(),
-        ts: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    } catch(err) {}
-  }
+  await db.collection('eventos').add(e);
+  await logAudit('criou evento','eventos','—',e.titulo);
   closeM('m-evento');
 }
 
@@ -2723,8 +2614,7 @@ let _cliTab='todos';
 function cliTab(t,btn){_cliTab=t;document.querySelectorAll('#pg-clientes .tab').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');renderClis();}
 
 function renderClis() {
-  if (_unsubClis) { _unsubClis(); _unsubClis = null; }
-  _unsubClis = db.collection('clientes').orderBy('nome').onSnapshot(snap=>{
+  db.collection('clientes').orderBy('nome').onSnapshot(snap=>{
     let cls=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(_cliTab==='ativos') cls=cls.filter(c=>c.status==='Cliente Ativo');
     else if(_cliTab==='aniversarios'){const m=new Date().getMonth()+1;cls=cls.filter(c=>{if(!c.nasc)return false;return parseInt(c.nasc.split('-')[1])===m;});}
@@ -2739,20 +2629,11 @@ function renderClis() {
         <td style="color:${c.fu&&c.fu<=today()?'var(--red)':''}">${fmt(c.fu)}</td>
         <td>${sBadge(c.status)}</td>
         <td>
-          ${c.tel ? `<button class="btn-wa btn-xs" onclick="whatsappCli('${c.tel.replace(/'/g,'')}','${c.nome.replace(/'/g,'')}')" title="WhatsApp">📲</button>` : ''}
           <button class="btn btn-ghost btn-xs" onclick="editCli('${c.id}')">✏</button>
           <button class="btn btn-danger btn-xs" onclick="deletarCli('${c.id}','${c.nome}')">🗑</button>
         </td>
       </tr>`).join('');
   });
-}
-
-function whatsappCli(tel, nome) {
-  if (!tel) { alert('Este cliente não tem telefone cadastrado.'); return; }
-  const num = tel.replace(/\D/g, '');
-  const numBR = num.startsWith('55') ? num : '55' + num;
-  const msg = `Olá, ${nome}! 😊 Aqui é da Bianco Marinho Arquitetura. Como posso ajudar?`;
-  window.open(`https://wa.me/${numBR}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function novoCli() {
@@ -3179,20 +3060,13 @@ function renderCPPage(){
   const sel=document.getElementById('sel-cp-proj');
   if(sel) sel.innerHTML='<option value="">Selecione...</option>'+_projetos.map(p=>`<option value="${p.id}">${p.cod} — ${p.nome}</option>`).join('');
   document.getElementById('cp-preview').innerHTML='';
-  document.getElementById('cp-whats-remind').innerHTML='';
 }
 
 function previewCP(){
   const id=document.getElementById('sel-cp-proj').value;
-  if(!id){
-    document.getElementById('cp-preview').innerHTML='';
-    document.getElementById('cp-whats-remind').innerHTML='';
-    return;
-  }
+  if(!id){document.getElementById('cp-preview').innerHTML='';return;}
   const p=_projetos.find(x=>x.id===id);
   if(!p) return;
-
-  // ── Pré-visualização ──
   document.getElementById('cp-preview').innerHTML=`
     <div class="tbox">
       <div class="tbox-hdr"><div class="tbox-title">Pré-visualização</div></div>
@@ -3209,60 +3083,6 @@ function previewCP(){
         </div>
       </div>
     </div>`;
-
-  // ── Seção de lembrete WhatsApp ──
-  const cli1 = _clientes.find(c => c.nome === p.cli);
-  const cli2 = _clientes.find(c => c.nome === p.cli2);
-
-  function clienteWaRow(cli, proj) {
-    if (!cli) return '';
-    const tel = cli.tel || '';
-    const num = tel.replace(/\D/g,'');
-    const numBR = num.startsWith('55') ? num : '55' + num;
-    const msgUpdate = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nUpdate do seu projeto *${proj.nome}*:\n\n✅ Progresso: *${proj.pct||0}%*\n📋 Etapa: ${proj.etapa||'Início'}\n📅 Prazo: ${fmt(proj.prazo)}\n\nQualquer dúvida, estamos à disposição!\n\n_Bianco Marinho Arquitetura_`
-    );
-    const msgReuniao = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nGostaríamos de agendar uma reunião para conversar sobre o andamento do seu projeto *${proj.nome}*.\n\nQual seria um bom horário para você?\n\n_Bianco Marinho Arquitetura_`
-    );
-    const msgDoc = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nPrecisamos que você nos envie alguns documentos/informações para dar continuidade ao projeto *${proj.nome}*.\n\nPoderia nos enviar em breve?\n\n_Bianco Marinho Arquitetura_`
-    );
-    const waBase = tel ? `https://wa.me/${numBR}` : '#';
-    return `
-      <div class="wa-cli-row">
-        <div class="wa-cli-info">
-          <div class="wa-cli-nome">👤 ${cli.nome}</div>
-          <div class="wa-cli-tel">${tel || '⚠ Sem telefone cadastrado'}</div>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${tel ? `
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgUpdate}','_blank')" title="Enviar update do projeto">📊 Update</button>
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgReuniao}','_blank')" title="Agendar reunião">📅 Reunião</button>
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgDoc}','_blank')" title="Solicitar documentos">📋 Documentos</button>
-          ` : `<span style="font-size:11px;color:#b03030">Cadastre o telefone do cliente para ativar os lembretes</span>`}
-        </div>
-      </div>`;
-  }
-
-  const row1 = clienteWaRow(cli1, p);
-  const row2 = clienteWaRow(cli2, p);
-
-  if (row1 || row2) {
-    document.getElementById('cp-whats-remind').innerHTML=`
-      <div class="wa-remind-box">
-        <div class="wa-remind-title">📲 Enviar lembrete por WhatsApp</div>
-        ${row1}${row2}
-        <div style="font-size:11px;color:#6b6860;margin-top:10px">
-          Clique em um dos botões para abrir o WhatsApp com a mensagem já pronta. Revise e envie!
-        </div>
-      </div>`;
-  } else {
-    document.getElementById('cp-whats-remind').innerHTML=`
-      <div class="wa-remind-box" style="background:var(--bg2);border-color:var(--border)">
-        <div style="font-size:13px;color:var(--text3)">Nenhum cliente vinculado a este projeto ainda.</div>
-      </div>`;
-  }
 }
 
 function copiarCP(){if(!_cpHtml){gerarCP();return;}navigator.clipboard.writeText(_cpHtml).then(()=>alert('HTML copiado!'));}
