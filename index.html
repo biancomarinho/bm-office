@@ -602,7 +602,18 @@ tbody tr:hover td{background:var(--bg)}
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Responsável</label><select class="fs" id="proj-resp"><option>Raysa</option><option>Caio</option><option>Ivie</option></select></div>
-      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="proj-tipo"><option>Arq+Int</option><option>Arquitetura</option><option>Interiores</option><option>Reforma</option><option>Comercial</option></select></div>
+      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="proj-tipo">
+        <option>Projeto de Interiores</option>
+        <option>Arquitetura</option>
+        <option>Arq+Int</option>
+        <option>Reforma</option>
+        <option>Regularização</option>
+        <option>Vigilância Sanitária</option>
+        <option>Engenharia</option>
+        <option>Construção</option>
+        <option>Gerenciamento/Acompanhamento</option>
+        <option>Outros</option>
+      </select></div>
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Data início</label><input type="date" class="fi" id="proj-ini"></div>
@@ -618,6 +629,7 @@ tbody tr:hover td{background:var(--bg)}
         <option value="arq">🏗 Arquitetura (11 etapas)</option>
         <option value="int">🛋 Interiores (9 etapas)</option>
         <option value="arqint">🏗🛋 Arq + Interiores (completo — 11 etapas)</option>
+        <option value="livre">📝 Livre (personalizado)</option>
       </select>
     </div>
     <div class="fg"><label class="fl">Observações</label><textarea class="fta" id="proj-obs"></textarea></div>
@@ -656,7 +668,18 @@ tbody tr:hover td{background:var(--bg)}
     <div class="fg"><label class="fl">Nome *</label><input class="fi" id="prop-nome"></div>
     <div class="frow">
       <div class="fg"><label class="fl">Cliente</label><select class="fs" id="prop-cli"></select></div>
-      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="prop-tipo"><option>Projeto de Interiores</option><option>Arquitetura</option><option>Arq+Int</option><option>Reforma</option></select></div>
+      <div class="fg"><label class="fl">Tipo</label><select class="fs" id="prop-tipo">
+        <option>Projeto de Interiores</option>
+        <option>Arquitetura</option>
+        <option>Arq+Int</option>
+        <option>Reforma</option>
+        <option>Regularização</option>
+        <option>Vigilância Sanitária</option>
+        <option>Engenharia</option>
+        <option>Construção</option>
+        <option>Gerenciamento/Acompanhamento</option>
+        <option>Outros</option>
+      </select></div>
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Valor (R$)</label><input type="number" class="fi" id="prop-valor"></div>
@@ -726,6 +749,7 @@ tbody tr:hover td{background:var(--bg)}
       <div class="fg"><label class="fl">Origem</label><select class="fs" id="cli-origem"><option>Instagram</option><option>Indicação</option><option>Google</option><option>LinkedIn</option><option>WhatsApp</option><option>Outro</option></select></div>
       <div class="fg"><label class="fl">Próx. follow-up</label><input type="date" class="fi" id="cli-fu"></div>
     </div>
+    <div class="fg"><label class="fl">🟢 Link do Grupo WhatsApp</label><input class="fi" id="cli-wpp-grupo" placeholder="https://chat.whatsapp.com/..."></div>
     <div class="fg"><label class="fl">Observações</label><textarea class="fta" id="cli-obs" style="min-height:60px"></textarea></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('m-cli')">Cancelar</button><button class="btn btn-primary" onclick="salvarCli()">Salvar</button></div>
@@ -1770,6 +1794,10 @@ const CK_TEMPLATES = {
       'Retoques de pintura',
     ]},
   ],
+
+  livre: [
+    {id:'livre0', label:'📋 Checklist Personalizado', cor:'#2d5be3', itens:[]}
+  ],
 };
 
 // Active template — set per project
@@ -1778,6 +1806,7 @@ let CK_TPL = CK_TEMPLATES.arq; // default
 function getCKTPL(tipo) {
   if (!tipo) return CK_TEMPLATES.arq;
   const t = (tipo||'').toLowerCase();
+  if (t === 'livre') return JSON.parse(JSON.stringify(CK_TEMPLATES.livre)); // deep copy for isolation
   if (t === 'int' || t === 'interiores' || t === 'reforma') return CK_TEMPLATES.int;
   if (t === 'arqint' || t === 'arq+int') return CK_TEMPLATES.arqint;
   return CK_TEMPLATES.arq;
@@ -1861,6 +1890,47 @@ function projTab(tab, btn) {
     // Load project + checklist config
     db.collection('projetos').doc(_projAtual).get().then(projDoc=>{
       const projData = projDoc.data();
+      const isLivre = (projData.template||'arq') === 'livre';
+
+      // ── CHECKLIST LIVRE ──
+      if(isLivre) {
+        const livreItens = projData.livreItens || [];
+        const ck = projData.checklist || {};
+        const vals = ck['livre0'] || {};
+        const done = Object.values(vals).filter(v=>v?.done).length;
+        let html = `<div class="ck-group">
+          <div style="border-left:3px solid #2d5be3;background:var(--bg);border-bottom:1px solid var(--border)">
+            <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div class="ck-group-title" style="color:#2d5be3">📋 Checklist Personalizado</div>
+              <span style="font-size:12px;color:var(--text3)">${done}/${livreItens.length} concluídos</span>
+            </div>
+          </div>`;
+        if(livreItens.length===0) {
+          html+=`<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:13px">Nenhum item ainda. Adicione abaixo ↓</div>`;
+        }
+        livreItens.forEach((it,i)=>{
+          const v=vals[i]||{};
+          html+=`<div class="ck-row ${v.done?'done':''}" style="display:flex;align-items:center;gap:0">
+            <div style="flex:1;display:flex;align-items:flex-start;gap:0" onclick="toggleCk('${_projAtual}','livre0',${i},'${it.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+              <div class="ck-box">${v.done?'✓':''}</div>
+              <div class="ck-text">${it}
+                ${v.done&&v.by?`<div class="ck-edited">✓ ${v.by} · ${v.at?.toDate?.().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})||''}</div>`:''}
+              </div>
+            </div>
+            <button onclick="removeItemLivre('${_projAtual}',${i})" title="Remover item" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px 12px;flex-shrink:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">🗑</button>
+          </div>`;
+        });
+        html+=`</div>
+        <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+          <input class="fi" id="livre-novo-item" placeholder="Novo item do checklist..." style="flex:1;margin-bottom:0"
+            onkeydown="if(event.key==='Enter')addItemLivre('${_projAtual}')">
+          <button class="btn btn-primary" onclick="addItemLivre('${_projAtual}')">+ Adicionar</button>
+        </div>`;
+        el.innerHTML=html;
+        return;
+      }
+
+      // ── TEMPLATES PADRÃO (arq / int / arqint) ──
     db.collection('config').doc('checklist').get().then(cfg=>{
       // Set correct template based on project type
       CK_TPL = getCKTPL(projData.template || projData.tipo);
@@ -1923,7 +1993,10 @@ function projTab(tab, btn) {
         <td>${t.nome}</td><td>${t.resp}</td>
         <td style="color:${isPast(t.prazo)?'var(--red)':''}">${fmt(t.prazo)}</td>
         <td>${pBadge(t.prio)}</td><td>${sBadge(t.status)}</td>
-        <td><button class="btn btn-ghost btn-xs" onclick="concluirTar('${d.id}')">✓</button></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-xs" onclick="concluirTar('${d.id}')">✓</button>
+          <button class="btn btn-danger btn-xs" onclick="deletarTar('${d.id}','${(t.nome||'').replace(/'/g,"\\'")}')">🗑</button>
+        </td>
       </tr>`;}).join('')+`</tbody></table></div>`);
     });
 
@@ -2222,6 +2295,44 @@ async function salvarEdicaoChecklist(projId) {
   projTab('checklist', document.querySelector('#pg-proj-detalhe .tab'));
 }
 
+// ── CHECKLIST LIVRE: adicionar / remover itens ──
+async function addItemLivre(projId) {
+  const input = document.getElementById('livre-novo-item');
+  const txt = (input?.value||'').trim();
+  if(!txt) { input?.focus(); return; }
+  await db.collection('projetos').doc(projId).update({
+    livreItens: firebase.firestore.FieldValue.arrayUnion(txt),
+    updatedBy: myName(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await logAudit('adicionou item livre','projetos',projId,txt);
+  projTab('checklist', document.querySelector('#pg-proj-detalhe .tab.on'));
+}
+
+async function removeItemLivre(projId, idx) {
+  if(!confirm('Remover este item do checklist?')) return;
+  const doc = await db.collection('projetos').doc(projId).get();
+  const itens = [...(doc.data().livreItens||[])];
+  itens.splice(idx,1);
+  // Rebuild checklist keys after removal (shift indexes down)
+  const ck = doc.data().checklist||{};
+  const oldVals = ck['livre0']||{};
+  const newVals = {};
+  Object.keys(oldVals).forEach(k=>{
+    const ki=parseInt(k);
+    if(ki < idx) newVals[k]=oldVals[k];
+    else if(ki > idx) newVals[String(ki-1)]=oldVals[k];
+  });
+  await db.collection('projetos').doc(projId).update({
+    livreItens: itens,
+    'checklist.livre0': newVals,
+    updatedBy: myName(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await logAudit('removeu item livre','projetos',projId,`idx ${idx}`);
+  projTab('checklist', document.querySelector('#pg-proj-detalhe .tab.on'));
+}
+
 function editProj(id) {
   db.collection('projetos').doc(id).get().then(d=>{
     if(!d.exists) return;
@@ -2347,6 +2458,7 @@ function renderTarefas() {
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-xs" onclick="editTar('${t.id}')">✏</button>
           <button class="btn btn-ghost btn-xs" onclick="concluirTar('${t.id}')">✓</button>
+          <button class="btn btn-danger btn-xs" onclick="deletarTar('${t.id}','${t.nome.replace(/'/g,"\\'")}')">🗑</button>
         </td>
       </tr>`).join('')+`</tbody></table></div>`;
     }
@@ -2739,7 +2851,7 @@ function renderClis() {
         <td style="color:${c.fu&&c.fu<=today()?'var(--red)':''}">${fmt(c.fu)}</td>
         <td>${sBadge(c.status)}</td>
         <td>
-          ${c.tel ? `<button class="btn-wa btn-xs" onclick="whatsappCli('${c.tel.replace(/'/g,'')}','${c.nome.replace(/'/g,'')}')" title="WhatsApp">📲</button>` : ''}
+          ${c.wppGrupo ? `<button class="btn-wa btn-xs" onclick="window.open('${c.wppGrupo}','_blank')" title="Abrir grupo WhatsApp">📲 Grupo</button>` : ''}
           <button class="btn btn-ghost btn-xs" onclick="editCli('${c.id}')">✏</button>
           <button class="btn btn-danger btn-xs" onclick="deletarCli('${c.id}','${c.nome}')">🗑</button>
         </td>
@@ -2758,7 +2870,7 @@ function whatsappCli(tel, nome) {
 function novoCli() {
   document.getElementById('cli-id').value = '';
   document.getElementById('m-cli-title').textContent = 'Novo Cliente';
-  ['nome','tel','email','nasc','end','fu','obs'].forEach(k=>{
+  ['nome','tel','email','nasc','end','fu','obs','wpp-grupo'].forEach(k=>{
     const el=document.getElementById('cli-'+k);
     if(el) el.value='';
   });
@@ -2773,6 +2885,7 @@ function editCli(id){
     document.getElementById('cli-id').value=id;
     document.getElementById('m-cli-title').textContent='Editar Cliente';
     ['nome','tel','email','fu','nasc','end','obs'].forEach(k=>{const el=document.getElementById('cli-'+k);if(el)el.value=c[k]||'';});
+    const wg=document.getElementById('cli-wpp-grupo');if(wg)wg.value=c.wppGrupo||'';;
     document.getElementById('cli-origem').value=c.origem||'Indicação';
     document.getElementById('cli-status').value=c.status||'Cliente Ativo';
     openM('m-cli');
@@ -2791,6 +2904,7 @@ async function salvarCli(){
     fu:document.getElementById('cli-fu').value,
     status:document.getElementById('cli-status').value,
     obs:document.getElementById('cli-obs').value,
+    wppGrupo:document.getElementById('cli-wpp-grupo').value.trim(),
     updatedBy:myName(),
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
   };
@@ -3216,31 +3330,17 @@ function previewCP(){
 
   function clienteWaRow(cli, proj) {
     if (!cli) return '';
-    const tel = cli.tel || '';
-    const num = tel.replace(/\D/g,'');
-    const numBR = num.startsWith('55') ? num : '55' + num;
-    const msgUpdate = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nUpdate do seu projeto *${proj.nome}*:\n\n✅ Progresso: *${proj.pct||0}%*\n📋 Etapa: ${proj.etapa||'Início'}\n📅 Prazo: ${fmt(proj.prazo)}\n\nQualquer dúvida, estamos à disposição!\n\n_Bianco Marinho Arquitetura_`
-    );
-    const msgReuniao = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nGostaríamos de agendar uma reunião para conversar sobre o andamento do seu projeto *${proj.nome}*.\n\nQual seria um bom horário para você?\n\n_Bianco Marinho Arquitetura_`
-    );
-    const msgDoc = encodeURIComponent(
-      `Olá, ${cli.nome}! 😊\n\nPrecisamos que você nos envie alguns documentos/informações para dar continuidade ao projeto *${proj.nome}*.\n\nPoderia nos enviar em breve?\n\n_Bianco Marinho Arquitetura_`
-    );
-    const waBase = tel ? `https://wa.me/${numBR}` : '#';
+    const grupo = cli.wppGrupo || '';
     return `
       <div class="wa-cli-row">
         <div class="wa-cli-info">
           <div class="wa-cli-nome">👤 ${cli.nome}</div>
-          <div class="wa-cli-tel">${tel || '⚠ Sem telefone cadastrado'}</div>
+          <div class="wa-cli-tel">${grupo ? '🟢 Grupo vinculado' : '⚠ Grupo não cadastrado'}</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${tel ? `
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgUpdate}','_blank')" title="Enviar update do projeto">📊 Update</button>
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgReuniao}','_blank')" title="Agendar reunião">📅 Reunião</button>
-            <button class="btn-wa" onclick="window.open('${waBase}?text=${msgDoc}','_blank')" title="Solicitar documentos">📋 Documentos</button>
-          ` : `<span style="font-size:11px;color:#b03030">Cadastre o telefone do cliente para ativar os lembretes</span>`}
+          ${grupo ? `
+            <button class="btn-wa" onclick="window.open('${grupo}','_blank')" title="Abrir grupo do projeto">💬 Abrir Grupo</button>
+          ` : `<span style="font-size:11px;color:#b03030">Cadastre o link do grupo WhatsApp no perfil do cliente</span>`}
         </div>
       </div>`;
   }
