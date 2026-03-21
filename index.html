@@ -574,11 +574,17 @@ tbody tr:hover td{background:var(--bg)}
   <div class="page" id="pg-dados">
     <div class="sec-hdr">
       <div><div class="sec-title">Dados do Escritório</div></div>
-      <button class="btn btn-ghost" onclick="openM('m-dados')">✏ Editar</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="openM('m-dados')">✏ Editar</button>
+        <button class="btn btn-primary" onclick="fazerBackup()" id="btn-backup">📦 Fazer Backup</button>
+      </div>
     </div>
     <div class="tbox">
       <div class="tbox-hdr"><div class="tbox-title">Informações gerais</div></div>
       <div style="padding:6px 18px" id="dados-view"></div>
+    </div>
+    <div style="background:var(--acc-l);border-radius:var(--r);padding:14px 18px;margin-top:16px;font-size:13px;color:var(--acc)">
+      💾 <strong>Backup dos dados:</strong> Clique em "Fazer Backup" para baixar um arquivo <code>.json</code> com todos os seus clientes, projetos, tarefas, propostas, eventos, financeiro e metas. Guarde em um lugar seguro (Google Drive, HD externo, etc.).
     </div>
   </div>
 
@@ -3399,6 +3405,63 @@ async function salvarDados(){
   await db.collection('config').doc('escritorio').set(dados,{merge:true});
   await logAudit('editou dados do escritório','config','escritorio');
   closeM('m-dados'); renderDados();
+}
+
+// ══════════════════════════════════════════════════════
+// BACKUP
+// ══════════════════════════════════════════════════════
+async function fazerBackup() {
+  const btn = document.getElementById('btn-backup');
+  btn.textContent = '⏳ Exportando...';
+  btn.disabled = true;
+
+  try {
+    const colecoes = ['clientes','projetos','tarefas','propostas','financeiro','eventos','metas','posts','config'];
+    const backup = { exportadoEm: new Date().toISOString(), exportadoPor: myName(), dados: {} };
+
+    for (const col of colecoes) {
+      const snap = await db.collection(col).get();
+      backup.dados[col] = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        // Convert Firestore Timestamps to readable dates
+        Object.keys(data).forEach(k => {
+          if (data[k]?.toDate) data[k] = data[k].toDate().toISOString();
+        });
+        backup.dados[col][d.id] = data;
+      });
+    }
+
+    // Export chat messages
+    const chatSnap = await db.collection('chat').doc('geral').collection('messages').orderBy('at').get();
+    backup.dados['chat_geral'] = {};
+    chatSnap.docs.forEach(d => {
+      const data = d.data();
+      if (data.at?.toDate) data.at = data.at.toDate().toISOString();
+      backup.dados['chat_geral'][d.id] = data;
+    });
+
+    // Download as JSON file
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataHoje = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `BM-Office-Backup-${dataHoje}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    await logAudit('exportou backup','sistema','backup');
+    showToast(`✅ Backup exportado com sucesso! Arquivo: <strong>BM-Office-Backup-${dataHoje}.json</strong><br><span style="font-size:11px">Guarde em local seguro (Google Drive, HD externo).</span>`, 10000);
+  } catch(e) {
+    alert('Erro ao exportar backup: ' + e.message);
+  } finally {
+    btn.textContent = '📦 Fazer Backup';
+    btn.disabled = false;
+  }
 }
 
 // ══════════════════════════════════════════════════════
