@@ -1879,18 +1879,33 @@ function getCKTPL(tipo) {
 
 function renderProjs() {
   if (_unsubProjs) { _unsubProjs(); _unsubProjs = null; }
-  _unsubProjs = db.collection('projetos').onSnapshot(snap=>{
+  _unsubProjs = db.collection('projetos').onSnapshot(async snap=>{
     const el=document.getElementById('proj-list');
     if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-ico">📁</div><div class="empty-title">Nenhum projeto</div></div>';return;}
     let projs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Client-side sort
-    projs.sort((a,b)=>{
-      let va=a[_projSort]||'', vb=b[_projSort]||'';
-      // Numeric sort for pct
-      if(_projSort==='pct'){va=Number(va)||0;vb=Number(vb)||0;return _projDir*(va-vb);}
-      return _projDir*(va<vb?-1:va>vb?1:0);
-    });
-    el.innerHTML=`<table class="tbox"><thead><tr>
+    // Fetch custom order from Firestore (unless user clicked a sort header)
+    let customOrder=[];
+    if(!_projSortOverride){
+      const orderDoc=await db.collection('config').doc('projOrder').get();
+      customOrder=orderDoc.exists?(orderDoc.data().order||[]):[];
+    }
+    if(customOrder.length>0){
+      // Sort by custom order (items not in list go to end)
+      projs.sort((a,b)=>{
+        const ia=customOrder.indexOf(a.id); const ib=customOrder.indexOf(b.id);
+        return (ia<0?9999:ia)-(ib<0?9999:ib);
+      });
+    } else {
+      // Client-side sort by column header
+      projs.sort((a,b)=>{
+        let va=String(a[_projSort]||''), vb=String(b[_projSort]||'');
+        if(_projSort==='pct'){return _projDir*(Number(a.pct||0)-Number(b.pct||0));}
+        if(_projSort==='prazo') return _projDir*(va<vb?-1:va>vb?1:0);
+        return _projDir*va.localeCompare(vb,'pt-BR',{sensitivity:'base',numeric:true});
+      });
+    }
+    el.innerHTML<`<table class="tbox"><thead><tr>
+      <th style="width:24px"></th>
       <th class="th-sort" id="th-proj-cod" onclick="sortProj('cod')">Código</th>
       <th class="th-sort" id="th-proj-nome" onclick="sortProj('nome')">Projeto</th>
       <th>Cliente</th>
@@ -1898,8 +1913,9 @@ function renderProjs() {
       <th class="th-sort" id="th-proj-prazo" onclick="sortProj('prazo')">Prazo</th>
       <th>Resp.</th>
       <th class="th-sort" id="th-proj-status" onclick="sortProj('status')">Status</th>
-      <th></th></tr></thead><tbody>`+
-    projs.map(p=>`<tr>
+      <th></th></tr></thead><tbody id="proj-tbody">`+
+    projs.map(p=>`<tr class="proj-row" data-proj-id="${p.id}" draggable="true" ondragstart="projDragStart(event,'${p.id}')" ondragend="projDragEnd(event)" ondragover="projDragOver(event)" ondrop="projDrop(event)">
+      <td><span class="drag-handle" title="Arrastar">≡</span></td>
       <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${p.cod}</td>
       <td><strong style="cursor:pointer;color:var(--acc)" onclick="abrirProj('${p.id}')">${p.nome}</strong></td>
       <td>${p.cli||'—'}${p.cli2?` + ${p.cli2}`:''}</td>
@@ -1910,14 +1926,14 @@ function renderProjs() {
           <button class="btn btn-ghost btn-xs" onclick="editProj('${p.id}')">✏</button>
           <button class="btn btn-danger btn-xs" onclick="deletarProj('${p.id}','${p.nome}')">🗑</button></td>
     </tr>`).join('')+`</tbody></table>`;
-    // Restore sort indicator
+    // Restore sort indicator (only when not using custom order)
     document.querySelectorAll('.th-sort[id^="th-proj-"]').forEach(el=>{el.classList.remove('asc','desc');});
-    const thActive=document.getElementById('th-proj-'+_projSort);
-    if(thActive) thActive.classList.add(_projDir===1?'asc':'desc');
+    if(customOrder.length===0){
+      const thActive=document.getElementById('th-proj-'+_projSort);
+      if(thActive) thActive.classList.add(_projDir===1?'asc':'desc');
+    }
   });
 }
-
-let _projAtual=null;
 function abrirProj(id) {
   _projAtual=id;
   db.collection('projetos').doc(id).get().then(d=>{
@@ -2808,9 +2824,9 @@ function renderPropostas() {
     cols.map((col,ci)=>{
       const cards=props.filter(p=>p.status===col);
       const total=cards.reduce((s,c)=>s+(c.valor||0),0);
-      return`<div class="kcol">
+      return`<div class="kcol" ondragover="kColDragOver(event)" ondragleave="kColDragLeave(event)" ondrop="kColDrop(event,'${col}')">
         <div class="kcol-hdr">${badge(col,cls[ci])}<span class="kcol-count">${cards.length}</span></div>
-        <div class="kcol-body">${cards.map(p=>`<div class="kcard" onclick="editProp('${p.id}')">
+        <div class="kcol-body">${cards.map(p=>`<div class="kcard" draggable="true" ondragstart="kDragStart(event,'${p.id}','propostas')" ondragend="kDragEnd(event)" onclick="editProp('${p.id}')">
           <div class="kcard-title">${p.nome}</div>
           <div class="kcard-meta"><span>${p.cli||'—'}</span></div>
           <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--acc);margin-top:5px">${fmtR(p.valor)}</div>
@@ -3096,8 +3112,9 @@ async function sendMsg() {
 // ══════════════════════════════════════════════════════
 let _cliTab='todos';
 let _cliSort='nome', _cliDir=1;
-let _projSort='cod', _projDir=1;
+let _projSort='cod', _projDir=1, _projSortOverride=false;
 function sortProj(col){
+  _projSortOverride=true;
   if(_projSort===col) _projDir*=-1; else {_projSort=col;_projDir=1;}
   document.querySelectorAll('.th-sort[id^="th-proj-"]').forEach(el=>{el.classList.remove('asc','desc');});
   const th=document.getElementById('th-proj-'+col);
