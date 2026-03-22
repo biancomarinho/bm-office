@@ -1879,58 +1879,59 @@ function getCKTPL(tipo) {
 
 function renderProjs() {
   if (_unsubProjs) { _unsubProjs(); _unsubProjs = null; }
-  _unsubProjs = db.collection('projetos').onSnapshot(async snap=>{
+  _unsubProjs = db.collection('projetos').onSnapshot(snap=>{
     const el=document.getElementById('proj-list');
+    if(!el) return;
     if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-ico">📁</div><div class="empty-title">Nenhum projeto</div></div>';return;}
     let projs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Fetch custom order from Firestore (unless user clicked a sort header)
-    let customOrder=[];
+    const doRender=(customOrder)=>{
+      if(customOrder.length>0){
+        projs.sort((a,b)=>{
+          const ia=customOrder.indexOf(a.id); const ib=customOrder.indexOf(b.id);
+          return (ia<0?9999:ia)-(ib<0?9999:ib);
+        });
+      } else {
+        projs.sort((a,b)=>{
+          let va=String(a[_projSort]||''), vb=String(b[_projSort]||'');
+          if(_projSort==='pct'){return _projDir*(Number(a.pct||0)-Number(b.pct||0));}
+          if(_projSort==='prazo') return _projDir*(va<vb?-1:va>vb?1:0);
+          return _projDir*va.localeCompare(vb,'pt-BR',{sensitivity:'base',numeric:true});
+        });
+      }
+      el.innerHTML=`<table class="tbox"><thead><tr>
+        <th style="width:24px"></th>
+        <th class="th-sort" id="th-proj-cod" onclick="sortProj('cod')">Código</th>
+        <th class="th-sort" id="th-proj-nome" onclick="sortProj('nome')">Projeto</th>
+        <th>Cliente</th>
+        <th class="th-sort" id="th-proj-pct" onclick="sortProj('pct')">Progresso</th>
+        <th class="th-sort" id="th-proj-prazo" onclick="sortProj('prazo')">Prazo</th>
+        <th>Resp.</th>
+        <th class="th-sort" id="th-proj-status" onclick="sortProj('status')">Status</th>
+        <th></th></tr></thead><tbody id="proj-tbody">`+
+      projs.map(p=>`<tr class="proj-row" data-proj-id="${p.id}" draggable="true" ondragstart="projDragStart(event,'${p.id}')" ondragend="projDragEnd(event)" ondragover="projDragOver(event)" ondrop="projDrop(event)">
+        <td><span class="drag-handle" title="Arrastar">≡</span></td>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${p.cod}</td>
+        <td><strong style="cursor:pointer;color:var(--acc)" onclick="abrirProj('${p.id}')">${p.nome}</strong></td>
+        <td>${p.cli||'—'}${p.cli2?` + ${p.cli2}`:''}</td>
+        <td style="min-width:110px">${prog(p.pct||0)}</td>
+        <td style="color:${isPast(p.prazo)?'var(--red)':''}">${fmt(p.prazo)}</td>
+        <td>${p.resp||'—'}</td><td>${sBadge(p.status)}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="abrirProj('${p.id}')">Abrir</button>
+            <button class="btn btn-ghost btn-xs" onclick="editProj('${p.id}')">✏</button>
+            <button class="btn btn-danger btn-xs" onclick="deletarProj('${p.id}','${p.nome}')">🗑</button></td>
+      </tr>`).join('')+`</tbody></table>`;
+      document.querySelectorAll('.th-sort[id^="th-proj-"]').forEach(e=>{e.classList.remove('asc','desc');});
+      if(customOrder.length===0){
+        const thA=document.getElementById('th-proj-'+_projSort);
+        if(thA) thA.classList.add(_projDir===1?'asc':'desc');
+      }
+    };
     if(!_projSortOverride){
-      const orderDoc=await db.collection('config').doc('projOrder').get();
-      customOrder=orderDoc.exists?(orderDoc.data().order||[]):[];
-    }
-    if(customOrder.length>0){
-      // Sort by custom order (items not in list go to end)
-      projs.sort((a,b)=>{
-        const ia=customOrder.indexOf(a.id); const ib=customOrder.indexOf(b.id);
-        return (ia<0?9999:ia)-(ib<0?9999:ib);
-      });
+      db.collection('config').doc('projOrder').get()
+        .then(d=>doRender(d.exists?(d.data().order||[]):[]))
+        .catch(()=>doRender([]));
     } else {
-      // Client-side sort by column header
-      projs.sort((a,b)=>{
-        let va=String(a[_projSort]||''), vb=String(b[_projSort]||'');
-        if(_projSort==='pct'){return _projDir*(Number(a.pct||0)-Number(b.pct||0));}
-        if(_projSort==='prazo') return _projDir*(va<vb?-1:va>vb?1:0);
-        return _projDir*va.localeCompare(vb,'pt-BR',{sensitivity:'base',numeric:true});
-      });
-    }
-    el.innerHTML<`<table class="tbox"><thead><tr>
-      <th style="width:24px"></th>
-      <th class="th-sort" id="th-proj-cod" onclick="sortProj('cod')">Código</th>
-      <th class="th-sort" id="th-proj-nome" onclick="sortProj('nome')">Projeto</th>
-      <th>Cliente</th>
-      <th class="th-sort" id="th-proj-pct" onclick="sortProj('pct')">Progresso</th>
-      <th class="th-sort" id="th-proj-prazo" onclick="sortProj('prazo')">Prazo</th>
-      <th>Resp.</th>
-      <th class="th-sort" id="th-proj-status" onclick="sortProj('status')">Status</th>
-      <th></th></tr></thead><tbody id="proj-tbody">`+
-    projs.map(p=>`<tr class="proj-row" data-proj-id="${p.id}" draggable="true" ondragstart="projDragStart(event,'${p.id}')" ondragend="projDragEnd(event)" ondragover="projDragOver(event)" ondrop="projDrop(event)">
-      <td><span class="drag-handle" title="Arrastar">≡</span></td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${p.cod}</td>
-      <td><strong style="cursor:pointer;color:var(--acc)" onclick="abrirProj('${p.id}')">${p.nome}</strong></td>
-      <td>${p.cli||'—'}${p.cli2?` + ${p.cli2}`:''}</td>
-      <td style="min-width:110px">${prog(p.pct||0)}</td>
-      <td style="color:${isPast(p.prazo)?'var(--red)':''}">${fmt(p.prazo)}</td>
-      <td>${p.resp||'—'}</td><td>${sBadge(p.status)}</td>
-      <td><button class="btn btn-ghost btn-xs" onclick="abrirProj('${p.id}')">Abrir</button>
-          <button class="btn btn-ghost btn-xs" onclick="editProj('${p.id}')">✏</button>
-          <button class="btn btn-danger btn-xs" onclick="deletarProj('${p.id}','${p.nome}')">🗑</button></td>
-    </tr>`).join('')+`</tbody></table>`;
-    // Restore sort indicator (only when not using custom order)
-    document.querySelectorAll('.th-sort[id^="th-proj-"]').forEach(el=>{el.classList.remove('asc','desc');});
-    if(customOrder.length===0){
-      const thActive=document.getElementById('th-proj-'+_projSort);
-      if(thActive) thActive.classList.add(_projDir===1?'asc':'desc');
+      doRender([]);
     }
   });
 }
