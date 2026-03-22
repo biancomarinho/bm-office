@@ -147,6 +147,17 @@ tbody tr:hover td{background:var(--bg)}
 .kcard-title{font-size:13px;font-weight:500;margin-bottom:5px;line-height:1.35}
 .kcard-meta{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 
+/* ── CRONOGRAMA / GANTT ── */
+.gantt-wrap{overflow-x:auto;padding-bottom:8px}
+.gantt-table{width:100%;border-collapse:collapse;font-size:12px}
+.gantt-table th{padding:8px 12px;background:var(--bg2);border-bottom:2px solid var(--border);font-weight:600;white-space:nowrap;text-align:left}
+.gantt-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.gantt-bar-wrap{min-width:180px;background:var(--bg2);border-radius:20px;height:14px;overflow:hidden}
+.gantt-bar{height:100%;border-radius:20px;transition:width .3s}
+.gantt-empty{text-align:center;padding:10px;color:var(--text3);font-size:12px;font-style:italic}
+.crono-input{width:130px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font);background:#fff;color:var(--text)}
+.crono-input:focus{border-color:var(--acc);outline:none}
+
 /* ── CHECKLIST ── */
 .ck-group{background:#fff;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:12px}
 .ck-group-hdr{padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
@@ -397,6 +408,7 @@ tbody tr:hover td{background:var(--bg)}
     <div class="proj-hero" id="proj-hero-content"></div>
     <div class="tabs">
       <button class="tab on" onclick="projTab('checklist',this)">📋 Checklist</button>
+      <button class="tab" onclick="projTab('cronograma',this)">📅 Cronograma</button>
       <button class="tab" onclick="projTab('tarefas-proj',this)">✅ Tarefas</button>
       <button class="tab" onclick="projTab('financeiro-proj',this)">💰 Financeiro</button>
       <button class="tab" onclick="projTab('observacoes',this)">📌 Observações</button>
@@ -513,7 +525,7 @@ tbody tr:hover td{background:var(--bg)}
       <button class="tab" onclick="cliTab('aniversarios',this)">🎂 Aniversários</button>
     </div>
     <div class="tbox"><table><thead><tr>
-      <th>Nome</th><th>Telefone</th><th>Email</th><th>Aniversário</th><th>Origem</th><th>Follow-up</th><th>Status</th><th></th>
+      <th>Nome</th><th>Telefone</th><th>Email</th><th>Aniversário</th><th>Origem</th><th>Status</th><th></th>
     </tr></thead><tbody id="tbody-cli"></tbody></table></div>
   </div>
 
@@ -748,13 +760,10 @@ tbody tr:hover td{background:var(--bg)}
     </div>
     <div class="frow">
       <div class="fg"><label class="fl">Aniversário</label><input type="date" class="fi" id="cli-nasc"></div>
-      <div class="fg"><label class="fl">Status</label><select class="fs" id="cli-status"><option>Cliente Ativo</option><option>Lead</option><option>Proposta enviada</option><option>Perdido</option></select></div>
+      <div class="fg"><label class="fl">Status</label><select class="fs" id="cli-status"><option>Cliente Ativo</option><option>Lead</option><option>Proposta enviada</option><option>Em execução</option><option>Finalizado</option><option>Perdido</option></select></div>
     </div>
     <div class="fg"><label class="fl">Endereço</label><input class="fi" id="cli-end" placeholder="Rua, número, bairro, cidade"></div>
-    <div class="frow">
-      <div class="fg"><label class="fl">Origem</label><select class="fs" id="cli-origem"><option>Instagram</option><option>Indicação</option><option>Google</option><option>LinkedIn</option><option>WhatsApp</option><option>Outro</option></select></div>
-      <div class="fg"><label class="fl">Próx. follow-up</label><input type="date" class="fi" id="cli-fu"></div>
-    </div>
+    <div class="fg"><label class="fl">Origem</label><select class="fs" id="cli-origem"><option>Instagram</option><option>Indicação</option><option>Google</option><option>LinkedIn</option><option>WhatsApp</option><option>Outro</option></select></div>
     <div class="fg"><label class="fl">🟢 Link do Grupo WhatsApp</label><input class="fi" id="cli-wpp-grupo" placeholder="https://chat.whatsapp.com/..."></div>
     <div class="fg"><label class="fl">Observações</label><textarea class="fta" id="cli-obs" style="min-height:60px"></textarea></div>
   </div>
@@ -1989,6 +1998,70 @@ function projTab(tab, btn) {
     }); // end config.get
     }); // end projDoc.get
 
+  } else if(tab==='cronograma') {
+    db.collection('projetos').doc(_projAtual).get().then(projDoc=>{
+      const p = projDoc.data();
+      const etapas = p.etapas || {};
+      const isLivre = (p.template||'arq') === 'livre';
+      const grupos = isLivre
+        ? [{ id:'livre0', label:'📋 Checklist Personalizado', cor:'#2d5be3' }]
+        : getCKTPL(p.template || p.tipo);
+
+      // Build date range for Gantt
+      const allDates = grupos.flatMap(g => {
+        const ep = etapas[g.id] || {};
+        return [ep.ini, ep.fim].filter(Boolean);
+      });
+      const minDate = allDates.length ? allDates.reduce((a,b)=>a<b?a:b) : null;
+      const maxDate = allDates.length ? allDates.reduce((a,b)=>a>b?a:b) : null;
+      const totalDays = minDate && maxDate
+        ? Math.max(1, (new Date(maxDate) - new Date(minDate)) / 86400000)
+        : 1;
+
+      const rows = grupos.map((g,i) => {
+        const ep = etapas[g.id] || {};
+        const ini = ep.ini || '';
+        const fim = ep.fim || '';
+        // Gantt bar
+        let barHtml = `<div class="gantt-empty">Sem datas</div>`;
+        if(ini && fim && minDate) {
+          const start = Math.max(0, (new Date(ini) - new Date(minDate)) / 86400000);
+          const dur   = Math.max(1, (new Date(fim) - new Date(ini)) / 86400000);
+          const left  = Math.round(start / totalDays * 100);
+          const width = Math.min(100 - left, Math.round(dur / totalDays * 100));
+          barHtml = `<div class="gantt-bar-wrap">
+            <div class="gantt-bar" style="width:${width}%;margin-left:${left}%;background:${g.cor||'var(--acc)'}"></div>
+          </div>`;
+        }
+        const statusCls = {'Em andamento':'b-amber','Concluída':'b-green','Atrasada':'b-red','A iniciar':'b-gray'}[ep.status||'A iniciar'];
+        return `<tr>
+          <td style="font-weight:600;color:${g.cor||'var(--acc)'};min-width:160px">${g.label}</td>
+          <td><span class="b ${statusCls}">${ep.status||'A iniciar'}</span></td>
+          <td><input type="date" class="crono-input" id="crono-ini-${g.id}" value="${ini}" onchange="salvarCronoData('${_projAtual}','${g.id}')"></td>
+          <td><input type="date" class="crono-input" id="crono-fim-${g.id}" value="${fim}" onchange="salvarCronoData('${_projAtual}','${g.id}')"></td>
+          <td>${ini&&fim ? `<span style="font-size:11px;color:var(--text3)">${Math.round((new Date(fim)-new Date(ini))/86400000)} dias</span>` : '—'}</td>
+          <td style="min-width:200px">${barHtml}</td>
+        </tr>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:13px;color:var(--text2)">Defina as datas de início e entrega de cada etapa. As datas são salvas automaticamente.</div>
+          <button class="btn btn-primary btn-sm" onclick="sincronizarCronograma('${_projAtual}')">📆 Sincronizar com Calendário</button>
+        </div>
+        <div class="tbox gantt-wrap">
+          <table class="gantt-table">
+            <thead><tr>
+              <th>Etapa</th><th>Status</th><th>Início</th><th>Entrega</th><th>Duração</th><th>Linha do tempo</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="background:var(--acc-l);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--acc);margin-top:12px">
+          💡 Clique em "Sincronizar com Calendário" para criar eventos no Calendário do sistema para cada entrega definida.
+        </div>`;
+    });
+
   } else if(tab==='tarefas-proj') {
     db.collection('tarefas').where('projId','==',_projAtual).get().then(snap=>{
       el.innerHTML=`<div style="margin-bottom:12px;display:flex;justify-content:flex-end">
@@ -2163,6 +2236,70 @@ async function salvarEtapa() {
   await logAudit('atualizou etapa','projetos',projId,`${groupId} → ${ep.status} · ${ep.resp}`);
   closeM('m-etapa');
   projTab('checklist', document.querySelector('#pg-proj-detalhe .tab.on'));
+}
+
+// ── CRONOGRAMA ──
+async function salvarCronoData(projId, groupId) {
+  const ini = document.getElementById(`crono-ini-${groupId}`)?.value || '';
+  const fim = document.getElementById(`crono-fim-${groupId}`)?.value || '';
+  const update = {};
+  if(ini) update[`etapas.${groupId}.ini`] = ini;
+  if(fim) update[`etapas.${groupId}.fim`] = fim;
+  update.updatedBy = myName();
+  update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  await db.collection('projetos').doc(projId).update(update);
+  // Refresh Gantt quietly (just re-render)
+  projTab('cronograma', document.querySelector('#pg-proj-detalhe .tab.on'));
+}
+
+async function sincronizarCronograma(projId) {
+  const doc = await db.collection('projetos').doc(projId).get();
+  const p = doc.data();
+  const etapas = p.etapas || {};
+  const isLivre = (p.template||'arq') === 'livre';
+  const grupos = isLivre
+    ? [{ id:'livre0', label:'Checklist Personalizado', cor:'#2d5be3' }]
+    : getCKTPL(p.template || p.tipo);
+
+  let criados = 0;
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+
+  for (const g of grupos) {
+    const ep = etapas[g.id] || {};
+    if (!ep.fim) continue; // só cria evento se tiver data de entrega
+
+    // Verifica se já existe evento para este grupo neste projeto
+    const exist = await db.collection('eventos')
+      .where('projId','==',projId)
+      .where('cronoGroupId','==',g.id)
+      .get();
+    if (!exist.empty) {
+      // Atualiza data do evento existente
+      await exist.docs[0].ref.update({
+        data: ep.fim,
+        titulo: `📦 Entrega: ${g.label.replace(/^\d+\.\s*/,'')} — ${p.nome}`,
+        updatedBy: myName(),
+        updatedAt: ts,
+      });
+    } else {
+      // Cria novo evento
+      await db.collection('eventos').add({
+        titulo: `📦 Entrega: ${g.label.replace(/^\d+\.\s*/,'')} — ${p.nome}`,
+        data: ep.fim,
+        hora: '18:00',
+        tipo: 'Prazo',
+        projId: projId,
+        cronoGroupId: g.id,
+        cor: g.cor || '#2d5be3',
+        createdBy: myName(),
+        createdAt: ts,
+      });
+      criados++;
+    }
+  }
+
+  await logAudit('sincronizou cronograma','projetos',projId);
+  showToast(`📆 Cronograma sincronizado! <strong>${criados} evento(s) criado(s)</strong> no Calendário.`, 8000);
 }
 
 async function salvarObs(projId) {
@@ -2847,14 +2984,13 @@ function renderClis() {
     if(_cliTab==='ativos') cls=cls.filter(c=>c.status==='Cliente Ativo');
     else if(_cliTab==='aniversarios'){const m=new Date().getMonth()+1;cls=cls.filter(c=>{if(!c.nasc)return false;return parseInt(c.nasc.split('-')[1])===m;});}
     document.getElementById('tbody-cli').innerHTML=cls.length===0
-      ?'<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">Nenhum cliente</td></tr>'
+      ?'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">Nenhum cliente</td></tr>'
       :cls.map(c=>`<tr>
         <td><strong>${c.nome}</strong>${c.end?`<div style="font-size:11px;color:var(--text3)">📍 ${c.end}</div>`:''}</td>
         <td>${c.tel||'—'}</td>
         <td style="font-size:12px">${c.email||'—'}</td>
         <td>${c.nasc?`🎂 ${fmt(c.nasc)}`:'—'}</td>
         <td>${badge(c.origem||'','b-gray')}</td>
-        <td style="color:${c.fu&&c.fu<=today()?'var(--red)':''}">${fmt(c.fu)}</td>
         <td>${sBadge(c.status)}</td>
         <td>
           ${c.wppGrupo ? `<button class="btn-wa btn-xs" onclick="window.open('${c.wppGrupo}','_blank')" title="Abrir grupo WhatsApp">📲 Grupo</button>` : ''}
@@ -2876,7 +3012,7 @@ function whatsappCli(tel, nome) {
 function novoCli() {
   document.getElementById('cli-id').value = '';
   document.getElementById('m-cli-title').textContent = 'Novo Cliente';
-  ['nome','tel','email','nasc','end','fu','obs','wpp-grupo'].forEach(k=>{
+  ['nome','tel','email','nasc','end','obs','wpp-grupo'].forEach(k=>{
     const el=document.getElementById('cli-'+k);
     if(el) el.value='';
   });
@@ -2890,7 +3026,7 @@ function editCli(id){
     const c=d.data();
     document.getElementById('cli-id').value=id;
     document.getElementById('m-cli-title').textContent='Editar Cliente';
-    ['nome','tel','email','fu','nasc','end','obs'].forEach(k=>{const el=document.getElementById('cli-'+k);if(el)el.value=c[k]||'';});
+    ['nome','tel','email','nasc','end','obs'].forEach(k=>{const el=document.getElementById('cli-'+k);if(el)el.value=c[k]||'';});
     const wg=document.getElementById('cli-wpp-grupo');if(wg)wg.value=c.wppGrupo||'';;
     document.getElementById('cli-origem').value=c.origem||'Indicação';
     document.getElementById('cli-status').value=c.status||'Cliente Ativo';
@@ -2907,7 +3043,6 @@ async function salvarCli(){
     nasc:document.getElementById('cli-nasc').value,
     end:document.getElementById('cli-end').value,
     origem:document.getElementById('cli-origem').value,
-    fu:document.getElementById('cli-fu').value,
     status:document.getElementById('cli-status').value,
     obs:document.getElementById('cli-obs').value,
     wppGrupo:document.getElementById('cli-wpp-grupo').value.trim(),
