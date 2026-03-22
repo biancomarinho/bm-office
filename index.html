@@ -146,7 +146,7 @@ tbody tr:hover td{background:var(--bg)}
 .kcol{background:var(--bg2);border-radius:var(--r2);min-width:240px;flex-shrink:0;border:1px solid var(--border);overflow:hidden}
 .kcol-hdr{padding:11px 14px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .kcol-count{background:var(--bg3);color:var(--text3);font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px}
-.kcol-body{padding:8px}
+.kcol-body{padding:8px;max-height:calc(100vh - 260px);overflow-y:auto}
 .kcard{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;cursor:pointer;box-shadow:var(--sh);transition:box-shadow .12s}
 .kcard:hover{box-shadow:var(--sh2)}
 .kcard-title{font-size:13px;font-weight:500;margin-bottom:5px;line-height:1.35}
@@ -2316,6 +2316,29 @@ async function salvarCronoData(projId, groupId) {
   update.updatedBy = myName();
   update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
   await db.collection('projetos').doc(projId).update(update);
+  // ── Auto-sincronizar data de fim com o calendário ──
+  if(fim){
+    const projDoc=await db.collection('projetos').doc(projId).get();
+    const p=projDoc.data();
+    const isLivre=(p.template||'arq')==='livre';
+    const grupos=isLivre?[{id:'livre0',label:'Checklist Personalizado',cor:'#2d5be3'}]:getCKTPL(p.template||p.tipo);
+    const g=grupos.find(x=>x.id===groupId);
+    if(g){
+      const exist=await db.collection('eventos').where('projId','==',projId).where('cronoGroupId','==',groupId).get();
+      const evData={
+        titulo:`📦 Entrega: ${g.label.replace(/^\d+\.\s*/,'')} — ${p.nome}`,
+        data:fim,hora:'18:00',tipo:'Prazo',
+        projId,cronoGroupId:groupId,
+        updatedBy:myName(),updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      };
+      if(!exist.empty){
+        await exist.docs[0].ref.update(evData);
+      } else {
+        evData.createdBy=myName();evData.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('eventos').add(evData);
+      }
+    }
+  }
   // Refresh Gantt quietly (just re-render)
   projTab('cronograma', document.querySelector('#pg-proj-detalhe .tab.on'));
 }
@@ -2724,6 +2747,9 @@ async function deletarCli(id, nome) {
 async function deletarTar(id, nome) {
   if (!confirm(`Excluir a tarefa "${nome}"?`)) return;
   await db.collection('tarefas').doc(id).delete();
+  // Remover evento vinculado se existir
+  const evs=await db.collection('eventos').where('tarId','==',id).get();
+  evs.docs.forEach(d=>d.ref.delete());
   await logAudit('excluiu tarefa','tarefas',id,nome);
 }
 
@@ -2745,6 +2771,26 @@ async function salvarTar() {
   const ref=id?db.collection('tarefas').doc(id):db.collection('tarefas').doc();
   if(!id){t.createdBy=myName();t.createdAt=firebase.firestore.FieldValue.serverTimestamp();}
   await ref.set(t,{merge:true});
+  // ── Auto-sincronizar com calendário se tiver prazo ──
+  if(t.prazo){
+    const existEvs=await db.collection('eventos').where('tarId','==',ref.id).get();
+    const evData={
+      titulo:`📋 Tarefa: ${t.nome}`,
+      data:t.prazo,
+      tipo:'Prazo',
+      tarId:ref.id,
+      projId:t.projId||'',
+      updatedBy:myName(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    if(!existEvs.empty){
+      await existEvs.docs[0].ref.update(evData);
+    } else {
+      evData.createdBy=myName();
+      evData.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('eventos').add(evData);
+    }
+  }
   await logAudit(id?'editou tarefa':'criou tarefa','tarefas',ref.id,t.nome);
   closeM('m-tar');
 }
@@ -3075,8 +3121,10 @@ function renderClis() {
     else if(_cliTab==='aniversarios'){const m=new Date().getMonth()+1;cls=cls.filter(c=>{if(!c.nasc)return false;return parseInt(c.nasc.split('-')[1])===m;});}
     // Apply sort
     cls.sort((a,b)=>{
-      let va=a[_cliSort]||'', vb=b[_cliSort]||'';
-      return _cliDir*(va<vb?-1:va>vb?1:0);
+      let va=String(a[_cliSort]||''), vb=String(b[_cliSort]||'');
+      // Dates (YYYY-MM-DD) sort fine lexicographically
+      if(_cliSort==='nasc') return _cliDir*(va<vb?-1:va>vb?1:0);
+      return _cliDir*va.localeCompare(vb,'pt-BR',{sensitivity:'base',numeric:true});
     });
     document.getElementById('tbody-cli').innerHTML=cls.length===0
       ?'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">Nenhum cliente</td></tr>'
